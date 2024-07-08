@@ -686,8 +686,9 @@ export class BinanceExchange extends BaseExchange {
     if (!fromPrice || !toPrice) {
       this.emitter.emit(
         "error",
-        `Invalid fromPrice or toPrice ${opts} ${ticker} ${pSide} ${fromPrice} ${toPrice}`
+        `Invalid fromPrice or toPrice ${JSON.stringify(opts, null, 2)} ${JSON.stringify(ticker, null, 2)} ${JSON.stringify(pSide, null, 2)} ${fromPrice} ${toPrice}`
       );
+
       return [];
     }
     // We use price only for limit orders
