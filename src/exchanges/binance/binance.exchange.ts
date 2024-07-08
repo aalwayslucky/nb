@@ -671,11 +671,25 @@ export class BinanceExchange extends BaseExchange {
     const pPrice = market.precision.price;
     const pAmount = market.precision.amount;
     const pSide = this.getOrderPositionSide(opts);
+    let fromPrice = null;
+    let toPrice = null;
+    if (pSide === "LONG") {
+      fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
+      toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
+    }
+    if (pSide === "SHORT") {
+      fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
+      toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
+    }
 
+    if (!fromPrice || !toPrice) {
+      this.emitter.emit("error", "Invalid fromPrice or toPrice");
+      return [];
+    }
     // We use price only for limit orders
     // Market order should not define price
     // Binance stopPrice only for SL or TP orders
-    const avgPrice = (opts.fromPrice + opts.toPrice) / 2;
+    const avgPrice = (fromPrice + toPrice) / 2;
 
     const quantity = opts.amount / avgPrice;
     this.emitter.emit("info", `Splitting ${opts.amount} into ${opts.orders}`);
@@ -688,7 +702,7 @@ export class BinanceExchange extends BaseExchange {
     });
     const lowestSize = (opts.fromScale / totalWeight) * quantity;
 
-    if (lowestSize < minSize || lowestSize * opts.fromPrice < minNotional) {
+    if (lowestSize < minSize || lowestSize * fromPrice < minNotional) {
       if (opts.autoReAdjust) {
         const validOrdersAmount = calcValidOrdersCount({
           fromScale: opts.fromScale,
@@ -698,7 +712,7 @@ export class BinanceExchange extends BaseExchange {
           minSize: minSize,
           minNotional: minNotional,
           totalWeight: totalWeight,
-          fromPrice: opts.fromPrice,
+          fromPrice: fromPrice,
         });
         if (validOrdersAmount < 3) {
           this.emitter.emit(
@@ -715,7 +729,7 @@ export class BinanceExchange extends BaseExchange {
         const newLowestSize = (opts.fromScale / reAdjustedWeight) * quantity;
         if (
           newLowestSize < minSize ||
-          newLowestSize * opts.fromPrice < minNotional
+          newLowestSize * fromPrice < minNotional
         ) {
           this.emitter.emit(
             "error",
@@ -731,14 +745,14 @@ export class BinanceExchange extends BaseExchange {
         return [];
       }
     }
-    const priceDifference = opts.toPrice - opts.fromPrice;
+    const priceDifference = toPrice - fromPrice;
     const priceStep = priceDifference / (opts.orders - 1);
     for (let i = 0; i < opts.orders; i++) {
       const weightOfOrder =
         opts.fromScale +
         (opts.toScale - opts.fromScale) * (i / (opts.orders - 1));
       let sizeOfOrder = quantity * (weightOfOrder / totalWeight);
-      const price: number = opts.fromPrice + priceStep * i;
+      const price: number = fromPrice + priceStep * i;
       if (sizeOfOrder * price < minNotional * 1.05) {
         sizeOfOrder = (minNotional * 1.1) / price;
       }

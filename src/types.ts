@@ -42,8 +42,8 @@ export type SplidOrderOpts = {
   readonly type: OrderType;
   readonly side: OrderSide;
   readonly amount: number;
-  readonly fromPrice: number;
-  readonly toPrice: number;
+  readonly fromPriceDiff: number;
+  readonly toPriceDiff: number;
   readonly fromScale: number;
   readonly toScale: number;
   readonly orders: number;
