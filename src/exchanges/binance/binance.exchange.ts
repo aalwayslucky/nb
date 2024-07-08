@@ -760,6 +760,7 @@ export class BinanceExchange extends BaseExchange {
         side: inverseObj(ORDER_SIDE)[opts.side],
         type: inverseObj(ORDER_TYPE)[opts.type],
         quantity: adjust(sizeOfOrder, pAmount),
+        timeInForce: "GTC",
         price: adjust(price, pPrice),
         reduceOnly: "false",
         newClientOrderId: generateOrderId(),
