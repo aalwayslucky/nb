@@ -673,11 +673,12 @@ export class BinanceExchange extends BaseExchange {
     const pSide = this.getOrderPositionSide(opts);
     let fromPrice = null;
     let toPrice = null;
-    if (pSide === "LONG") {
+
+    if (opts.side === "buy") {
       fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
       toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
     }
-    if (pSide === "SHORT") {
+    if (opts.side === "sell") {
       fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
       toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
     }
@@ -763,7 +764,7 @@ export class BinanceExchange extends BaseExchange {
       const req: PayloadOrder = omitUndefined({
         symbol: opts.symbol,
         positionSide: pSide,
-        side: inverseObj(ORDER_SIDE)[opts.side],
+        side: side,
         type: inverseObj(ORDER_TYPE)[opts.type],
         quantity: adjust(sizeOfOrder, pAmount),
         timeInForce: "GTC",
