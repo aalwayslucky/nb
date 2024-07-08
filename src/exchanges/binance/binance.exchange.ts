@@ -671,6 +671,7 @@ export class BinanceExchange extends BaseExchange {
     const pPrice = market.precision.price;
     const pAmount = market.precision.amount;
     const pSide = this.getOrderPositionSide(opts);
+    const side = inverseObj(ORDER_SIDE)[opts.side];
     let fromPrice = null;
     let toPrice = null;
 
