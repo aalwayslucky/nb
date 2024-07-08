@@ -765,15 +765,13 @@ export class BinanceExchange extends BaseExchange {
 
       const req: PayloadOrder = omitUndefined({
         symbol: opts.symbol,
-        positionSide: pSide,
         side: side,
         type: inverseObj(ORDER_TYPE)[opts.type],
         quantity: adjust(sizeOfOrder, pAmount),
-        timeInForce: "GTC",
         price: adjust(price, pPrice),
-        reduceOnly: "false",
         newClientOrderId: generateOrderId(),
       });
+      this.emitter.emit("info", req);
 
       orders.push(req);
       totalQuantity += adjust(sizeOfOrder, pAmount);

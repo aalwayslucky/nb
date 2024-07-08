@@ -31,10 +31,10 @@ export interface PayloadOrder {
   readonly symbol: string;
   readonly side: string;
   readonly type: string;
-  readonly timeInForce: string;
+  readonly timeInForce?: string;
   readonly quantity: number;
   readonly price: number;
-  readonly reduceOnly: string;
+  readonly reduceOnly?: string;
   readonly newClientOrderId: string;
 }
 export type SplidOrderOpts = {
