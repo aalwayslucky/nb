@@ -626,15 +626,7 @@ export class BinanceExchange extends BaseExchange {
   };
   placeSplitOrder = async (opts: SplidOrderOpts) => {
     const payloads = this.formatCreateSplitOrders(opts);
-    await this.orderQueueManager.enqueueOrders(payloads);
-
-    // Wait for the OrderQueueManager to finish processing
-    while (this.orderQueueManager.isProcessing()) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    const data = this.orderQueueManager.getResults();
-    // Return the results
-    return data;
+    return await this.placeSplitOrders(payloads);
   };
 
   placeOrdersFast = async (orders: PlaceOrderOpts[]) => {
@@ -671,7 +663,6 @@ export class BinanceExchange extends BaseExchange {
     const pPrice = market.precision.price;
     const pAmount = market.precision.amount;
     const pSide = this.getOrderPositionSide(opts);
-    const side = inverseObj(ORDER_SIDE)[opts.side];
     let fromPrice = null;
     let toPrice = null;
 
@@ -765,10 +756,12 @@ export class BinanceExchange extends BaseExchange {
 
       const req: PayloadOrder = omitUndefined({
         symbol: opts.symbol,
-        side: side,
+        positionSide: pSide,
+        side: inverseObj(ORDER_SIDE)[opts.side],
         type: inverseObj(ORDER_TYPE)[opts.type],
         quantity: adjust(sizeOfOrder, pAmount),
         price: adjust(price, pPrice),
+        reduceOnly: "false",
         newClientOrderId: generateOrderId(),
       });
       this.emitter.emit("info", req);
@@ -1031,5 +1024,25 @@ export class BinanceExchange extends BaseExchange {
     await Promise.all(promises);
 
     return orderResults;
+  };
+  private placeSplitOrders = async (payloads: PayloadOrder[]) => {
+    const orderPromises = payloads.map((payload) =>
+      this.unlimitedXHR
+        .post(ENDPOINTS.ORDER, payload)
+        .then(() => payload.newClientOrderId)
+        .catch((err) => {
+          this.emitter.emit("error", err?.response?.data?.msg || err?.message);
+          return null; // Return null or a similar marker to indicate failure.
+        })
+    );
+
+    const results = await Promise.allSettled(orderPromises);
+    const orderIds = results
+      .filter(
+        (result) => result.status === "fulfilled" && result.value !== null
+      )
+      .map((result) => (result as PromiseFulfilledResult<string>).value);
+
+    return orderIds;
   };
 }
