@@ -7,6 +7,7 @@ import groupBy from "lodash/groupBy";
 import omit from "lodash/omit";
 import times from "lodash/times";
 import { forEachSeries } from "p-iteration";
+import OrderQueueManager from "./orderQueueManager";
 
 import type { Store } from "../../store/store.interface";
 import type {
@@ -17,8 +18,10 @@ import type {
   OHLCVOptions,
   Order,
   OrderBook,
+  PayloadOrder,
   PlaceOrderOpts,
   Position,
+  SplidOrderOpts,
   Ticker,
   UpdateOrderOpts,
 } from "../../types";
@@ -34,7 +37,7 @@ import { inverseObj } from "../../utils/inverse-obj";
 import { loop } from "../../utils/loop";
 import { omitUndefined } from "../../utils/omit-undefined";
 import { adjust, subtract } from "../../utils/safe-math";
-import { uuid } from "../../utils/uuid";
+import { generateOrderId, uuid } from "../../utils/uuid";
 import { BaseExchange } from "../base";
 
 import { createAPI } from "./binance.api";
@@ -47,6 +50,10 @@ import {
 } from "./binance.types";
 import { BinancePrivateWebsocket } from "./binance.ws-private";
 import { BinancePublicWebsocket } from "./binance.ws-public";
+import {
+  calculateWeights,
+  calcValidOrdersCount,
+} from "../../utils/scaleWeights";
 
 export class BinanceExchange extends BaseExchange {
   name = "BINANCE";
@@ -56,12 +63,17 @@ export class BinanceExchange extends BaseExchange {
 
   publicWebsocket: BinancePublicWebsocket;
   privateWebsocket: BinancePrivateWebsocket;
+  private orderQueueManager: OrderQueueManager;
 
   constructor(opts: ExchangeOptions, store: Store) {
     super(opts, store);
 
     this.xhr = rateLimit(createAPI(opts), { maxRPS: 3 });
     this.unlimitedXHR = createAPI(opts);
+    this.orderQueueManager = new OrderQueueManager(
+      this.emitter,
+      this.placeOrderBatchFast.bind(this) // Pass the placeOrderBatch function
+    );
 
     this.publicWebsocket = new BinancePublicWebsocket(this);
     this.privateWebsocket = new BinancePrivateWebsocket(this);
@@ -212,7 +224,9 @@ export class BinanceExchange extends BaseExchange {
           const amt = m.filters.find(
             (f: any) => v(f, "filterType") === "LOT_SIZE"
           );
-
+          const notional = m.filters.find(
+            (f: any) => v(f, "filterType") === "MIN_NOTIONAL"
+          );
           const mAmt = m.filters.find(
             (f: any) => v(f, "filterType") === "MARKET_LOT_SIZE"
           );
@@ -243,6 +257,8 @@ export class BinanceExchange extends BaseExchange {
                   parseFloat(v(mAmt, "maxQty"))
                 ),
               },
+              minNotional: parseFloat(v(notional, "notional")),
+
               leverage: {
                 min: 1,
                 max: v(brackets[0], "initialLeverage"),
@@ -608,7 +624,143 @@ export class BinanceExchange extends BaseExchange {
     const requests = orders.flatMap((o) => this.formatCreateOrder(o));
     return await this.placeOrderBatch(requests);
   };
+  placeSplitOrder = async (opts: SplidOrderOpts) => {
+    const payloads = this.formatCreateSplitOrders(opts);
+    await this.orderQueueManager.enqueueOrders(payloads);
 
+    // Wait for the OrderQueueManager to finish processing
+    while (this.orderQueueManager.isProcessing()) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const data = this.orderQueueManager.getResults();
+    // Return the results
+    return data;
+  };
+
+  placeOrdersFast = async (orders: PlaceOrderOpts[]) => {
+    const requests = orders.flatMap((o) => this.formatCreateOrder(o));
+
+    // Enqueue all requests in the OrderQueueManager
+    await this.orderQueueManager.enqueueOrders(requests);
+
+    // Wait for the OrderQueueManager to finish processing
+    while (this.orderQueueManager.isProcessing()) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const data = this.orderQueueManager.getResults();
+    // Return the results
+    return data;
+  };
+  private formatCreateSplitOrders = (opts: SplidOrderOpts) => {
+    const orders: PayloadOrder[] = [];
+    const market = this.store.markets.find(({ symbol }: Market) => {
+      return symbol === opts.symbol;
+    });
+    const ticker = this.store.tickers.find(({ symbol }: Ticker) => {
+      return symbol === opts.symbol;
+    });
+
+    if (!market) {
+      throw new Error(`Market ${opts.symbol} not found`);
+    }
+    if (!ticker) {
+      throw new Error(`Ticker ${opts.symbol} not found`);
+    }
+    const minSize = market.limits.amount.min;
+    const minNotional = market.limits.minNotional;
+    const pPrice = market.precision.price;
+    const pAmount = market.precision.amount;
+    const pSide = this.getOrderPositionSide(opts);
+
+    // We use price only for limit orders
+    // Market order should not define price
+    // Binance stopPrice only for SL or TP orders
+    const avgPrice = (opts.fromPrice + opts.toPrice) / 2;
+
+    const quantity = opts.amount / avgPrice;
+    this.emitter.emit("info", `Splitting ${opts.amount} into ${opts.orders}`);
+    this.emitter.emit("info", `Quantity: ${quantity}`);
+    let totalQuantity = 0;
+    const totalWeight = calculateWeights({
+      fromScale: opts.fromScale,
+      toScale: opts.toScale,
+      orders: opts.orders,
+    });
+    const lowestSize = (opts.fromScale / totalWeight) * quantity;
+
+    if (lowestSize < minSize || lowestSize * opts.fromPrice < minNotional) {
+      if (opts.autoReAdjust) {
+        const validOrdersAmount = calcValidOrdersCount({
+          fromScale: opts.fromScale,
+          toScale: opts.toScale,
+          orders: opts.orders,
+          amount: quantity,
+          minSize: minSize,
+          minNotional: minNotional,
+          totalWeight: totalWeight,
+          fromPrice: opts.fromPrice,
+        });
+        if (validOrdersAmount < 3) {
+          this.emitter.emit(
+            "error",
+            "Bruh either u poor or retardio cannot split"
+          );
+          return [];
+        }
+        const reAdjustedWeight = calculateWeights({
+          fromScale: opts.fromScale,
+          toScale: opts.toScale,
+          orders: validOrdersAmount,
+        });
+        const newLowestSize = (opts.fromScale / reAdjustedWeight) * quantity;
+        if (
+          newLowestSize < minSize ||
+          newLowestSize * opts.fromPrice < minNotional
+        ) {
+          this.emitter.emit(
+            "error",
+            `WTF u doing something wrong wen spliting orders ${validOrdersAmount}`
+          );
+          return [];
+        }
+      } else {
+        this.emitter.emit(
+          "error",
+          "Scale too extreme to split orders - no adjustments made"
+        );
+        return [];
+      }
+    }
+    const priceDifference = opts.toPrice - opts.fromPrice;
+    const priceStep = priceDifference / (opts.orders - 1);
+    for (let i = 0; i < opts.orders; i++) {
+      const weightOfOrder =
+        opts.fromScale +
+        (opts.toScale - opts.fromScale) * (i / (opts.orders - 1));
+      let sizeOfOrder = quantity * (weightOfOrder / totalWeight);
+      const price: number = opts.fromPrice + priceStep * i;
+      if (sizeOfOrder * price < minNotional * 1.05) {
+        sizeOfOrder = (minNotional * 1.1) / price;
+      }
+
+      const req: PayloadOrder = omitUndefined({
+        symbol: opts.symbol,
+        positionSide: pSide,
+        side: inverseObj(ORDER_SIDE)[opts.side],
+        type: inverseObj(ORDER_TYPE)[opts.type],
+        quantity: adjust(sizeOfOrder, pAmount),
+        timeInForce: "GTC",
+        price: adjust(price, pPrice),
+        reduceOnly: "false",
+        newClientOrderId: generateOrderId(),
+      });
+
+      orders.push(req);
+      totalQuantity += adjust(sizeOfOrder, pAmount);
+    }
+    this.emitter.emit("info", `Total Quantity: ${totalQuantity}`);
+    return orders;
+  };
   // eslint-disable-next-line complexity
   private formatCreateOrder = (opts: PlaceOrderOpts) => {
     if (opts.type === OrderType.TrailingStopLoss) {
@@ -802,5 +954,64 @@ export class BinanceExchange extends BaseExchange {
     }
 
     return orderIds;
+  };
+  private sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  private placeOrderBatchFast = async (payloads: any[]) => {
+    const lots = chunk(payloads, 5);
+    const orderResults = [] as { orderId: string; error: any }[];
+
+    const promises = lots.map(async (lot) => {
+      if (lot.length === 1) {
+        try {
+          await this.unlimitedXHR.post(ENDPOINTS.ORDER, lot[0]);
+          orderResults.push({ orderId: lot[0].newClientOrderId, error: null });
+        } catch (err: any) {
+          orderResults.push({
+            orderId: lot[0].newClientOrderId,
+            error: err?.response?.data?.msg || err?.message,
+          });
+        }
+      }
+
+      if (lot.length > 1) {
+        try {
+          const { data } = await this.unlimitedXHR.post(
+            ENDPOINTS.BATCH_ORDERS,
+            {
+              batchOrders: JSON.stringify(lot),
+            }
+          );
+          await this.sleep(70);
+
+          data?.forEach?.((o: any, index: number) => {
+            const originalOrder = lot[index];
+            if (o.code) {
+              orderResults.push({
+                orderId: originalOrder.newClientOrderId,
+                error: o,
+              });
+            } else {
+              orderResults.push({
+                orderId: originalOrder.newClientOrderId,
+                error: null,
+              });
+            }
+          });
+        } catch (err: any) {
+          lot.forEach((o: any) => {
+            orderResults.push({
+              orderId: o.newClientOrderId,
+              error: err?.response?.data?.msg || err?.message,
+            });
+          });
+        }
+      }
+    });
+
+    await Promise.all(promises);
+
+    return orderResults;
   };
 }

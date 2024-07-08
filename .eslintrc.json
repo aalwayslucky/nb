@@ -1,9 +1,16 @@
 {
-  "extends": ["algolia", "algolia/typescript"],
+  "extends": [
+    "algolia",
+    "algolia/typescript",
+    "prettier",
+    "prettier/@typescript-eslint" // This line is not needed if you're using eslint-config-prettier v8.0.0 or later
+  ],
   "parserOptions": {
     "project": "./tsconfig.json"
   },
+  "plugins": ["prettier"],
   "rules": {
-    "@typescript-eslint/explicit-function-return-type": "off"
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "prettier/prettier": "error"
   }
 }

@@ -27,7 +27,33 @@ export type ExchangeOptions = {
     recvWindow?: number;
   };
 };
+export interface PayloadOrder {
+  readonly symbol: string;
+  readonly side: string;
+  readonly type: string;
+  readonly timeInForce: string;
+  readonly quantity: number;
+  readonly price: number;
+  readonly reduceOnly: string;
+  readonly newClientOrderId: string;
+}
+export type SplidOrderOpts = {
+  readonly symbol: string;
+  readonly type: OrderType;
+  readonly side: OrderSide;
+  readonly amount: number;
+  readonly fromPrice: number;
+  readonly toPrice: number;
+  readonly fromScale: number;
+  readonly toScale: number;
+  readonly orders: number;
+  readonly price?: number;
+  readonly amountUSD?: number;
 
+  readonly reduceOnly?: boolean;
+  readonly timeInForce?: OrderTimeInForce;
+  readonly autoReAdjust: boolean;
+};
 export type Balance = {
   readonly used: number;
   readonly free: number;
@@ -51,6 +77,8 @@ export type Market = {
       readonly min: number;
       readonly max: number;
     };
+    readonly minNotional: number;
+
     readonly leverage: {
       readonly min: number;
       readonly max: number;
