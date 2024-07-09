@@ -665,7 +665,7 @@ export class BinanceExchange extends BaseExchange {
       throw new Error(`Ticker ${opts.symbol} not found`);
     }
 
-    let side = null;
+    let side = undefined;
     let amount = null;
     if (opts.reduceOnly) {
       const position = this.store.positions.find(({ symbol }: Position) => {
@@ -686,6 +686,13 @@ export class BinanceExchange extends BaseExchange {
       side =
         position.side === PositionSide.Long ? OrderSide.Sell : OrderSide.Buy;
       amount = position.contracts * opts.tpPercentOfPosition;
+    } else {
+      if (opts.amount === undefined) {
+        this.emitter.emit("error", "Amount is required for split orders");
+        return [];
+      }
+      side = opts.side;
+      amount = opts.amount;
     }
     const minSize = market.limits.amount.min;
     const minNotional = market.limits.minNotional;
@@ -695,26 +702,16 @@ export class BinanceExchange extends BaseExchange {
     let fromPrice = null;
     let toPrice = null;
 
-    if (opts.reduceOnly) {
-      this.emitter.emit(
-        "error",
-        "ReduceOnly is not supported for split orders"
-      );
-      return [];
-    } else {
-      if (!opts.side) {
-        this.emitter.emit("error", "Side is required for split orders");
-        return [];
-      }
+    if (side === undefined) {
+      throw new Error(`Side is required for split orders`);
     }
 
     // Determine the effective side
-    const effectiveSide: "buy" | "sell" = side !== null ? side : opts.side;
     // Perform calculations based on the effective side
-    if (effectiveSide === "buy") {
+    if (side === "buy") {
       fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
       toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
-    } else if (effectiveSide === "sell") {
+    } else if (side === "sell") {
       fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
       toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
     }
@@ -804,7 +801,7 @@ export class BinanceExchange extends BaseExchange {
 
       const req: PayloadOrder = omitUndefined({
         symbol: opts.symbol,
-        side: inverseObj(ORDER_SIDE)[effectiveSide],
+        side: inverseObj(ORDER_SIDE)[side],
         type: inverseObj(ORDER_TYPE)[opts.type],
         quantity: adjust(sizeOfOrder, pAmount),
         timeInForce: "GTC",
