@@ -651,44 +651,89 @@ export class BinanceExchange extends BaseExchange {
     const ticker = this.store.tickers.find(({ symbol }: Ticker) => {
       return symbol === opts.symbol;
     });
+    const position = this.store.positions.find(({ symbol }: Position) => {
+      return symbol === opts.symbol;
+    });
 
     if (!market) {
+      throw new Error(`Market ${opts.symbol} not found`);
+    }
+    if (!position) {
       throw new Error(`Market ${opts.symbol} not found`);
     }
     if (!ticker) {
       throw new Error(`Ticker ${opts.symbol} not found`);
     }
+
+    let side = null;
+    let amount = null;
+    if (opts.reduceOnly) {
+      const position = this.store.positions.find(({ symbol }: Position) => {
+        return symbol === opts.symbol;
+      });
+
+      if (!position) {
+        this.emitter.emit("error", `Position ${opts.symbol} not found`);
+        return [];
+      }
+      if (!opts.tpPercentOfPosition) {
+        this.emitter.emit(
+          "error",
+          "tpPercentOfPosition is required for split orders"
+        );
+        return [];
+      }
+      side =
+        position.side === PositionSide.Long ? OrderSide.Sell : OrderSide.Buy;
+      amount = position.contracts * opts.tpPercentOfPosition;
+    }
     const minSize = market.limits.amount.min;
     const minNotional = market.limits.minNotional;
     const pPrice = market.precision.price;
     const pAmount = market.precision.amount;
-    const pSide = this.getOrderPositionSide(opts);
+
     let fromPrice = null;
     let toPrice = null;
 
-    if (opts.side === "buy") {
+    if (opts.reduceOnly) {
+      this.emitter.emit(
+        "error",
+        "ReduceOnly is not supported for split orders"
+      );
+      return [];
+    } else {
+      if (!opts.side) {
+        this.emitter.emit("error", "Side is required for split orders");
+        return [];
+      }
+    }
+
+    // Determine the effective side
+    const effectiveSide: "buy" | "sell" = side !== null ? side : opts.side;
+    // Perform calculations based on the effective side
+    if (effectiveSide === "buy") {
       fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
       toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
-    }
-    if (opts.side === "sell") {
+    } else if (effectiveSide === "sell") {
       fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
       toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
     }
 
     if (!fromPrice || !toPrice) {
-      this.emitter.emit(
-        "error",
-        `Invalid fromPrice or toPrice ${JSON.stringify(opts, null, 2)} ${JSON.stringify(ticker, null, 2)} ${JSON.stringify(pSide, null, 2)} ${fromPrice} ${toPrice}`
-      );
-
       return [];
     }
     // We use price only for limit orders
     // Market order should not define price
     // Binance stopPrice only for SL or TP orders
+
     const avgPrice = (fromPrice + toPrice) / 2;
 
-    const quantity = opts.amount / avgPrice;
+    const finalAmount = amount !== null ? amount : opts.amount;
+    if (finalAmount === undefined) {
+      this.emitter.emit("error", "Amount is required for split orders");
+      return [];
+    }
+    const quantity = finalAmount / avgPrice;
     this.emitter.emit("info", `Splitting ${opts.amount} into ${opts.orders}`);
     this.emitter.emit("info", `Quantity: ${quantity}`);
     let totalQuantity = 0;
@@ -756,8 +801,7 @@ export class BinanceExchange extends BaseExchange {
 
       const req: PayloadOrder = omitUndefined({
         symbol: opts.symbol,
-        positionSide: pSide,
-        side: inverseObj(ORDER_SIDE)[opts.side],
+        side: inverseObj(ORDER_SIDE)[effectiveSide],
         type: inverseObj(ORDER_TYPE)[opts.type],
         quantity: adjust(sizeOfOrder, pAmount),
         timeInForce: "GTC",

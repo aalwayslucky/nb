@@ -40,16 +40,16 @@ export interface PayloadOrder {
 export type SplidOrderOpts = {
   readonly symbol: string;
   readonly type: OrderType;
-  readonly side: OrderSide;
-  readonly amount: number;
+  readonly amount?: number;
   readonly fromPriceDiff: number;
   readonly toPriceDiff: number;
   readonly fromScale: number;
   readonly toScale: number;
   readonly orders: number;
+  readonly side?: OrderSide;
   readonly price?: number;
   readonly amountUSD?: number;
-
+  readonly tpPercentOfPosition?: number;
   readonly reduceOnly?: boolean;
   readonly timeInForce?: OrderTimeInForce;
   readonly autoReAdjust: boolean;
