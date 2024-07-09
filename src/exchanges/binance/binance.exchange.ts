@@ -744,7 +744,10 @@ export class BinanceExchange extends BaseExchange {
     });
     const lowestSize = (opts.fromScale / totalWeight) * quantity;
 
-    if (lowestSize < minSize || lowestSize * fromPrice < minNotional) {
+    if (
+      (!opts.reduceOnly && lowestSize < minSize) ||
+      lowestSize * fromPrice < minNotional
+    ) {
       if (opts.autoReAdjust) {
         const validOrdersAmount = calcValidOrdersCount({
           fromScale: opts.fromScale,
