@@ -798,6 +798,7 @@ export class BinanceExchange extends BaseExchange {
       if (sizeOfOrder * price < minNotional * 1.05) {
         sizeOfOrder = (minNotional * 1.1) / price;
       }
+      const reduceOnly = !this.store.options.isHedged && opts.reduceOnly;
 
       const req: PayloadOrder = omitUndefined({
         symbol: opts.symbol,
@@ -806,7 +807,7 @@ export class BinanceExchange extends BaseExchange {
         quantity: adjust(sizeOfOrder, pAmount),
         timeInForce: "GTC",
         price: adjust(price, pPrice),
-        reduceOnly: "false",
+        reduceOnly: reduceOnly ? "true" : undefined,
         newClientOrderId: generateOrderId(),
       });
       this.emitter.emit("info", req);
