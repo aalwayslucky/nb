@@ -789,6 +789,7 @@ export class BinanceExchange extends BaseExchange {
 
     const isStopOrTP =
       opts.type === OrderType.StopLoss || opts.type === OrderType.TakeProfit;
+    const isTP = opts.type === OrderType.TakeProfit;
 
     const pSide = this.getOrderPositionSide(opts);
 
@@ -818,7 +819,7 @@ export class BinanceExchange extends BaseExchange {
       positionSide: pSide,
       side: inverseObj(ORDER_SIDE)[opts.side],
       type: inverseObj(ORDER_TYPE)[opts.type],
-      quantity: amount ? `${amount}` : undefined,
+      quantity: !isTP && amount ? `${amount}` : undefined,
       [priceField]: price ? `${price}` : undefined,
       timeInForce: opts.type === OrderType.Limit ? timeInForce : undefined,
       closePosition: isStopOrTP ? "true" : undefined,
