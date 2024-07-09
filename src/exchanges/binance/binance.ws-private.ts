@@ -80,7 +80,7 @@ export class BinancePrivateWebsocket extends BaseWebSocket<BinanceExchange> {
         });
       }
 
-      if (data.X === "NEW") {
+      if (data.X === "NEW" || data.X === "AMENDMENT") {
         this.store.addOrUpdateOrder({
           id: data.c,
           orderId: data.i,
