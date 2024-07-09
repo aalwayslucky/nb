@@ -685,7 +685,7 @@ export class BinanceExchange extends BaseExchange {
       }
       side =
         position.side === PositionSide.Long ? OrderSide.Sell : OrderSide.Buy;
-      amount = position.contracts * opts.tpPercentOfPosition;
+      amount = (position.contracts * opts.tpPercentOfPosition) / 100;
     } else {
       if (opts.amount === undefined) {
         this.emitter.emit("error", "Amount is required for split orders");
