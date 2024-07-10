@@ -818,9 +818,9 @@ export class BinanceExchange extends BaseExchange {
         symbol: opts.symbol,
         side: inverseObj(ORDER_SIDE)[side],
         type: inverseObj(ORDER_TYPE)[opts.type],
-        quantity: adjust(sizeOfOrder, pAmount),
+        quantity: adjust(sizeOfOrder, pAmount).toString(), // Convert quantity to string
         timeInForce: "GTC",
-        price: adjust(price, pPrice),
+        price: adjust(price, pPrice).toString(), // Convert price to string
         reduceOnly: reduceOnly ? "true" : undefined,
         newClientOrderId: generateOrderId(),
       });

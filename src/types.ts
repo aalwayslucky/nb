@@ -32,8 +32,8 @@ export interface PayloadOrder {
   readonly side: string;
   readonly type: string;
   readonly timeInForce?: string;
-  readonly quantity: number;
-  readonly price: number;
+  readonly quantity: string;
+  readonly price: string;
   readonly reduceOnly?: string;
   readonly newClientOrderId: string;
 }
