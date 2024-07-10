@@ -113,7 +113,6 @@ export class BinancePrivateWebsocket extends BaseWebSocket<BinanceExchange> {
 
       event.a.P.forEach((p: Record<string, any>) => {
         const symbol = p.s;
-        const side = POSITION_SIDE[p.ps];
 
         const position = this.parent.store.positions.find(
           (p2) => p2.symbol === symbol
