@@ -1086,24 +1086,24 @@ export class BinanceExchange extends BaseExchange {
 
     return orderResults;
   };
-  private placeSplitOrders = async (payloads: PayloadOrder[]) => {
-    const orderPromises = payloads.map((payload) =>
-      this.unlimitedXHR
-        .post(ENDPOINTS.ORDER, payload)
-        .then(() => payload.newClientOrderId)
-        .catch((err) => {
-          this.emitter.emit("error", err?.response?.data?.msg || err?.message);
-          return null; // Return null or a similar marker to indicate failure.
-        })
-    );
+  // private placeSplitOrders = async (payloads: PayloadOrder[]) => {
+  //   const orderPromises = payloads.map((payload) =>
+  //     this.unlimitedXHR
+  //       .post(ENDPOINTS.ORDER, payload)
+  //       .then(() => payload.newClientOrderId)
+  //       .catch((err) => {
+  //         this.emitter.emit("error", err?.response?.data?.msg || err?.message);
+  //         return null; // Return null or a similar marker to indicate failure.
+  //       })
+  //   );
 
-    const results = await Promise.allSettled(orderPromises);
-    const orderIds = results
-      .filter(
-        (result) => result.status === "fulfilled" && result.value !== null
-      )
-      .map((result) => (result as PromiseFulfilledResult<string>).value);
+  //   const results = await Promise.allSettled(orderPromises);
+  //   const orderIds = results
+  //     .filter(
+  //       (result) => result.status === "fulfilled" && result.value !== null
+  //     )
+  //     .map((result) => (result as PromiseFulfilledResult<string>).value);
 
-    return orderIds;
-  };
+  //   return orderIds;
+  // };
 }
