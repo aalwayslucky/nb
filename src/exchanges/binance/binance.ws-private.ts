@@ -116,7 +116,7 @@ export class BinancePrivateWebsocket extends BaseWebSocket<BinanceExchange> {
         const side = POSITION_SIDE[p.ps];
 
         const position = this.parent.store.positions.find(
-          (p2) => p2.symbol === symbol && p2.side === side
+          (p2) => p2.symbol === symbol
         );
 
         if (position) {
@@ -130,6 +130,7 @@ export class BinancePrivateWebsocket extends BaseWebSocket<BinanceExchange> {
             notional: contracts * entryPrice + upnl,
             unrealizedPnl: upnl,
           });
+          this.parent.emitter.emit("positionUpdate", "Success");
         }
       });
 
