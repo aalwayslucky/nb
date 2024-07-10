@@ -49,6 +49,7 @@ export interface Exchange {
   cancelOrders: (orders: Order[]) => Promise<void>;
   cancelSymbolOrders: (symbol: string) => Promise<void>;
   cancelAllOrders: () => Promise<void>;
+  destroyQueue: () => void;
   fetchOHLCV: (opts: OHLCVOptions) => Promise<Candle[]>;
   listenOHLCV: (o: OHLCVOptions, c: (c: Candle) => void) => () => void;
   listenOrderBook: (s: string, c: (o: OrderBook) => void) => () => void;
@@ -105,6 +106,7 @@ export class BaseExchange implements Exchange {
     await Promise.reject(new Error("Not implemented"));
   };
 
+  destroyQueue() {}
   setLeverage = async (_symbol: string, _leverage: number) => {
     await Promise.reject(new Error("Not implemented"));
   };
