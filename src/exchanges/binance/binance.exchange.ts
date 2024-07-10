@@ -643,6 +643,9 @@ export class BinanceExchange extends BaseExchange {
     // Return the results
     return data;
   };
+  destroyQueue = () => {
+    this.orderQueueManager.destroyQueue();
+  };
   placeOrdersFast = async (orders: PlaceOrderOpts[]) => {
     const requests = orders.flatMap((o) => this.formatCreateOrder(o));
 

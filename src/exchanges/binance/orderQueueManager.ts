@@ -33,7 +33,18 @@ class OrderQueueManager {
       release();
     }
   };
-
+  destroyQueue = async () => {
+    const release = await this.mutex.acquire();
+    try {
+      this.queue = [];
+      this.processing = false;
+      this.orderTimestamps10s = [];
+      this.orderTimestamps60s = [];
+      this.emitter.emit("orderManager", this.queue.length); // Emit event after destroying the queue
+    } finally {
+      release();
+    }
+  };
   isProcessing() {
     return this.processing;
   }
