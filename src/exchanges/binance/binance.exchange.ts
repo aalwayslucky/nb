@@ -205,6 +205,17 @@ export class BinanceExchange extends BaseExchange {
         "DGBUSDT",
         "CTKUSDT",
         "ANTUSDT",
+        "SNTUSDT",
+        "WAVESUSDT",
+        "GLMRUSDT",
+        "AGIXUSDT",
+        "IDEXUSDT",
+        "MDTUSDT",
+        "CVXUSDT",
+        "STPTUSDT",
+        "SLPUSDT",
+        "RADUSDT",
+        "OCEANUSDT",
       ];
 
       const filteredSymbols = symbols.filter(
