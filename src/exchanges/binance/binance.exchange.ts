@@ -629,6 +629,20 @@ export class BinanceExchange extends BaseExchange {
     return await this.placeSplitOrders(payloads);
   };
 
+  placeSplitOrderFast = async (orders: SplidOrderOpts[]) => {
+    const requests = orders.flatMap((o) => this.formatCreateSplitOrders(o));
+
+    // Enqueue all requests in the OrderQueueManager
+    await this.orderQueueManager.enqueueOrders(requests);
+
+    // Wait for the OrderQueueManager to finish processing
+    while (this.orderQueueManager.isProcessing()) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const data = this.orderQueueManager.getResults();
+    // Return the results
+    return data;
+  };
   placeOrdersFast = async (orders: PlaceOrderOpts[]) => {
     const requests = orders.flatMap((o) => this.formatCreateOrder(o));
 

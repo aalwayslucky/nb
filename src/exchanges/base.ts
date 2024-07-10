@@ -36,7 +36,7 @@ export interface Exchange {
   validateAccount: () => Promise<string>;
   start: () => Promise<void>;
   nuke: (tries?: number) => Promise<void>;
-  nukeSymbol: (symbol: string, tries?: number) => Promise<void>;
+  nukeSymbol: (symbol: string[], tries?: number) => Promise<void>;
   changePositionMode: (hedged: boolean) => Promise<void>;
   setLeverage: (symbol: string, leverage: number) => Promise<void>;
   setAllLeverage: (leverage: number) => Promise<void>;
@@ -44,7 +44,7 @@ export interface Exchange {
   placeOrders: (orders: PlaceOrderOpts[]) => Promise<string[]>;
   placeOrdersFast: (orders: PlaceOrderOpts[]) => Promise<string[]>;
   placeSplitOrder: (opts: SplidOrderOpts) => Promise<string[]>;
-
+  placeSplitOrderFast: (orders: SplidOrderOpts[]) => Promise<string[]>;
   updateOrder: (opts: UpdateOrderOpts) => Promise<string[]>;
   cancelOrders: (orders: Order[]) => Promise<void>;
   cancelSymbolOrders: (symbol: string) => Promise<void>;
@@ -134,6 +134,10 @@ export class BaseExchange implements Exchange {
     const orderIds = await mapSeries(orders, (order) => this.placeOrder(order));
     return orderIds.flat();
   };
+  placeSplitOrderFast = async (_orders: SplidOrderOpts[]) => {
+    await Promise.reject(new Error("Not implemented"));
+    return [] as string[];
+  };
   placeSplitOrder = async (_opts: SplidOrderOpts) => {
     await Promise.reject(new Error("Not implemented"));
     return [] as string[];
@@ -203,40 +207,45 @@ export class BaseExchange implements Exchange {
       return [...acc, ...newOrders];
     }, []);
   };
-  nukeSymbol = async (symbol: string, tries = 0) => {
+  nukeSymbol = async (symbols: string[], tries = 0) => {
     if (!this.isDisposed && !this.isNuking) {
       this.isNuking = true;
 
-      // Filter for positions that match the symbol and have contracts
-      // Assuming 'symbol' is defined and 'this.store.positions' is an array of positions
-      const position = this.store.positions.find(
-        (p) => p.symbol === symbol && p.contracts > 0
-      );
+      // Process each symbol in the array
+      for (const symbol of symbols) {
+        // Filter for positions that match the symbol and have contracts
+        const position = this.store.positions.find(
+          (p) => p.symbol === symbol && p.contracts > 0
+        );
 
-      if (position) {
-        await this.placeOrder({
-          symbol: position.symbol,
-          side: position.side === "long" ? OrderSide.Sell : OrderSide.Buy,
-          type: OrderType.Market,
-          amount: position.contracts,
-          reduceOnly: true,
-        });
+        if (position) {
+          await this.placeOrder({
+            symbol: position.symbol,
+            side: position.side === "long" ? OrderSide.Sell : OrderSide.Buy,
+            type: OrderType.Market,
+            amount: position.contracts,
+            reduceOnly: true,
+          });
+        }
+
+        // Cancel all orders for the symbol
+        await this.cancelSymbolOrders(symbol);
       }
 
-      // Cancel all orders for the symbol
-      await this.cancelSymbolOrders(symbol);
       this.isNuking = false;
     }
 
-    // Check if there are still open positions for the symbol
-    const openPosition = this.store.positions.find(
-      (position) => position.symbol === symbol && position.contracts > 0
+    // Check if there are still open positions for any of the symbols
+    const openPositions = symbols.some((symbol) =>
+      this.store.positions.find(
+        (position) => position.symbol === symbol && position.contracts > 0
+      )
     );
 
     // If tries are less than 3 and there are open positions, retry
-    if (tries + 1 <= 3 && openPosition) {
+    if (tries + 1 <= 3 && openPositions) {
       await sleep(100);
-      await this.nukeSymbol(symbol, tries + 1);
+      await this.nukeSymbol(symbols, tries + 1);
     }
   };
   nuke = async (tries = 0) => {
