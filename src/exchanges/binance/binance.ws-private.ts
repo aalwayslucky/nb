@@ -8,7 +8,6 @@ import {
   ENDPOINTS,
   ORDER_SIDE,
   ORDER_TYPE,
-  POSITION_SIDE,
 } from "./binance.types";
 
 export class BinancePrivateWebsocket extends BaseWebSocket<BinanceExchange> {
