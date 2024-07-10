@@ -626,7 +626,7 @@ export class BinanceExchange extends BaseExchange {
   };
   placeSplitOrder = async (opts: SplidOrderOpts) => {
     const payloads = this.formatCreateSplitOrders(opts);
-    return await this.placeSplitOrders(payloads);
+    return await this.placeOrderBatch(payloads);
   };
 
   placeSplitOrderFast = async (orders: SplidOrderOpts[]) => {
