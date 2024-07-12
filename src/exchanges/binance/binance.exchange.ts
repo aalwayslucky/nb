@@ -22,6 +22,8 @@ import type {
   PlaceOrderOpts,
   Position,
   SplidOrderOpts,
+  SplitOrderError,
+  SplitOrderResult,
   Ticker,
   UpdateOrderOpts,
 } from "../../types";
@@ -635,25 +637,7 @@ export class BinanceExchange extends BaseExchange {
     const requests = orders.flatMap((o) => this.formatCreateOrder(o));
     return await this.placeOrderBatch(requests);
   };
-  placeSplitOrder = async (opts: SplidOrderOpts) => {
-    const payloads = this.formatCreateSplitOrders(opts);
-    return await this.placeOrderBatch(payloads);
-  };
 
-  placeSplitOrderFast = async (orders: SplidOrderOpts[]) => {
-    const requests = orders.flatMap((o) => this.formatCreateSplitOrders(o));
-
-    // Enqueue all requests in the OrderQueueManager
-    await this.orderQueueManager.enqueueOrders(requests);
-
-    // Wait for the OrderQueueManager to finish processing
-    while (this.orderQueueManager.isProcessing()) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    const data = this.orderQueueManager.getResults();
-    // Return the results
-    return data;
-  };
   destroyQueue = () => {
     this.orderQueueManager.destroyQueue();
   };
@@ -671,57 +655,104 @@ export class BinanceExchange extends BaseExchange {
     // Return the results
     return data;
   };
-  private formatCreateSplitOrders = (opts: SplidOrderOpts) => {
-    const orders: PayloadOrder[] = [];
-    const market = this.store.markets.find(({ symbol }: Market) => {
-      return symbol === opts.symbol;
-    });
-    const ticker = this.store.tickers.find(({ symbol }: Ticker) => {
-      return symbol === opts.symbol;
-    });
-    const position = this.store.positions.find(({ symbol }: Position) => {
-      return symbol === opts.symbol;
+
+  placeSplitOrderFast = async (
+    orders: SplidOrderOpts[]
+  ): Promise<SplitOrderResult> => {
+    // Separate valid orders from errors
+    const results = orders.map((o) => this.formatCreateSplitOrders(o));
+    const validOrders: PayloadOrder[] = [];
+    const errors: SplitOrderError[] = [];
+
+    results.forEach((result) => {
+      if (Array.isArray(result)) {
+        validOrders.push(...result);
+      } else if (result.error) {
+        errors.push(result.error);
+      }
     });
 
-    if (!market) {
-      throw new Error(`Market ${opts.symbol} not found`);
+    await this.orderQueueManager.enqueueOrders(validOrders);
+
+    while (this.orderQueueManager.isProcessing()) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    if (!position) {
-      throw new Error(`Market ${opts.symbol} not found`);
+    const data = this.orderQueueManager.getResults();
+
+    return { data, errors };
+  };
+
+  private formatCreateSplitOrders = (
+    opts: SplidOrderOpts
+  ): PayloadOrder[] | { error: { symbol: string; message: string } } => {
+    const orders: PayloadOrder[] = [];
+    const market = this.store.markets.find(
+      ({ symbol }: Market) => symbol === opts.symbol
+    );
+    const ticker = this.store.tickers.find(
+      ({ symbol }: Ticker) => symbol === opts.symbol
+    );
+    const position = this.store.positions.find(
+      ({ symbol }: Position) => symbol === opts.symbol
+    );
+
+    if (!market) {
+      return {
+        error: {
+          symbol: opts.symbol,
+          message: `Market ${opts.symbol} not found`,
+        },
+      };
     }
     if (!ticker) {
-      throw new Error(`Ticker ${opts.symbol} not found`);
+      return {
+        error: {
+          symbol: opts.symbol,
+          message: `Ticker ${opts.symbol} not found`,
+        },
+      };
+    }
+    if (!position) {
+      return {
+        error: {
+          symbol: opts.symbol,
+          message: `Position ${opts.symbol} not found`,
+        },
+      };
     }
 
     let side = undefined;
     let amount = null;
     if (opts.reduceOnly) {
-      const position = this.store.positions.find(({ symbol }: Position) => {
-        return symbol === opts.symbol;
-      });
-
       if (!position) {
-        this.emitter.emit("error", `Position ${opts.symbol} not found`);
-        return [];
+        return {
+          error: {
+            symbol: opts.symbol,
+            message: `Position ${opts.symbol} not found`,
+          },
+        };
       }
       if (!opts.tpPercentOfPosition) {
-        this.emitter.emit(
-          "error",
-          "tpPercentOfPosition is required for split orders"
-        );
-        return [];
+        return {
+          error: {
+            symbol: opts.symbol,
+            message: "tpPercentOfPosition is required for split orders",
+          },
+        };
       }
       side =
         position.side === PositionSide.Long ? OrderSide.Sell : OrderSide.Buy;
       amount = (position.contracts * opts.tpPercentOfPosition) / 100;
     } else {
       if (opts.amount === undefined) {
-        this.emitter.emit("error", "Amount is required for split orders");
-        return [];
+        return {
+          error: { symbol: opts.symbol, message: "Amount is required" },
+        };
       }
       side = opts.side;
       amount = opts.amount;
     }
+
     const minSize = market.limits.amount.min;
     const minNotional = market.limits.minNotional;
     const pPrice = market.precision.price;
@@ -731,11 +762,14 @@ export class BinanceExchange extends BaseExchange {
     let toPrice = null;
 
     if (side === undefined) {
-      throw new Error(`Side is required for split orders`);
+      return {
+        error: {
+          symbol: opts.symbol,
+          message: "Side is required for split orders",
+        },
+      };
     }
 
-    // Determine the effective side
-    // Perform calculations based on the effective side
     if (side === "buy") {
       fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
       toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
@@ -745,23 +779,17 @@ export class BinanceExchange extends BaseExchange {
     }
 
     if (!fromPrice || !toPrice) {
-      return [];
+      return { error: { symbol: opts.symbol, message: "Invalid price" } };
     }
-    // We use price only for limit orders
-    // Market order should not define price
-    // Binance stopPrice only for SL or TP orders
 
     const avgPrice = (fromPrice + toPrice) / 2;
 
     const finalAmount = amount !== null ? amount : opts.amount;
     if (finalAmount === undefined) {
-      this.emitter.emit("error", "Amount is required for split orders");
-      return [];
+      return { error: { symbol: opts.symbol, message: "Amount is required" } };
     }
     const quantity = finalAmount / avgPrice;
-    this.emitter.emit("info", `Splitting ${opts.amount} into ${opts.orders}`);
-    this.emitter.emit("info", `Quantity: ${quantity}`);
-    let totalQuantity = 0;
+
     const totalWeight = calculateWeights({
       fromScale: opts.fromScale,
       toScale: opts.toScale,
@@ -785,11 +813,12 @@ export class BinanceExchange extends BaseExchange {
           fromPrice: fromPrice,
         });
         if (validOrdersAmount < 3) {
-          this.emitter.emit(
-            "error",
-            "Bruh either u poor or retardio cannot split"
-          );
-          return [];
+          return {
+            error: {
+              symbol: opts.symbol,
+              message: "Scale too extreme to split orders",
+            },
+          };
         }
         const reAdjustedWeight = calculateWeights({
           fromScale: opts.fromScale,
@@ -801,20 +830,18 @@ export class BinanceExchange extends BaseExchange {
           newLowestSize < minSize ||
           newLowestSize * fromPrice < minNotional
         ) {
-          this.emitter.emit(
-            "error",
-            `WTF u doing something wrong wen spliting orders ${validOrdersAmount}`
-          );
-          return [];
+          return {
+            error: {
+              symbol: opts.symbol,
+              message: "Scale too extreme to split orders",
+            },
+          };
         }
       } else {
-        this.emitter.emit(
-          "error",
-          "Scale too extreme to split orders - no adjustments made"
-        );
-        return [];
+        return { error: { symbol: opts.symbol, message: "Scale too extreme" } };
       }
     }
+
     const priceDifference = toPrice - fromPrice;
     const priceStep = priceDifference / (opts.orders - 1);
     for (let i = 0; i < opts.orders; i++) {
@@ -838,14 +865,13 @@ export class BinanceExchange extends BaseExchange {
         reduceOnly: reduceOnly ? "true" : undefined,
         newClientOrderId: generateOrderId(),
       });
-      this.emitter.emit("info", req);
 
       orders.push(req);
-      totalQuantity += adjust(sizeOfOrder, pAmount);
     }
-    this.emitter.emit("info", `Total Quantity: ${totalQuantity}`);
+
     return orders;
   };
+
   // eslint-disable-next-line complexity
   private formatCreateOrder = (opts: PlaceOrderOpts) => {
     if (opts.type === OrderType.TrailingStopLoss) {

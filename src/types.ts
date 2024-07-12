@@ -308,3 +308,13 @@ export type MutableBalance = {
   upnl: number;
   assets: MutableWalletAsset[];
 };
+
+export type SplitOrderError = {
+  symbol: string;
+  message: string;
+};
+
+export type SplitOrderResult = {
+  data: string[];
+  errors: SplitOrderError[];
+};

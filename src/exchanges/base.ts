@@ -16,6 +16,7 @@ import type {
   OrderBook,
   PlaceOrderOpts,
   SplidOrderOpts,
+  SplitOrderResult,
   UpdateOrderOpts,
 } from "../types";
 import { LogSeverity, OrderSide, OrderType } from "../types";
@@ -43,8 +44,7 @@ export interface Exchange {
   placeOrder: (opts: PlaceOrderOpts) => Promise<string[]>;
   placeOrders: (orders: PlaceOrderOpts[]) => Promise<string[]>;
   placeOrdersFast: (orders: PlaceOrderOpts[]) => Promise<string[]>;
-  placeSplitOrder: (opts: SplidOrderOpts) => Promise<string[]>;
-  placeSplitOrderFast: (orders: SplidOrderOpts[]) => Promise<string[]>;
+  placeSplitOrderFast: (orders: SplidOrderOpts[]) => Promise<SplitOrderResult>;
   updateOrder: (opts: UpdateOrderOpts) => Promise<string[]>;
   cancelOrders: (orders: Order[]) => Promise<void>;
   cancelSymbolOrders: (symbol: string) => Promise<void>;
@@ -138,12 +138,9 @@ export class BaseExchange implements Exchange {
   };
   placeSplitOrderFast = async (_orders: SplidOrderOpts[]) => {
     await Promise.reject(new Error("Not implemented"));
-    return [] as string[];
+    return {} as SplitOrderResult;
   };
-  placeSplitOrder = async (_opts: SplidOrderOpts) => {
-    await Promise.reject(new Error("Not implemented"));
-    return [] as string[];
-  };
+
   updateOrder = async (_opts: UpdateOrderOpts) => {
     await Promise.reject(new Error("Not implemented"));
     return [] as string[];
