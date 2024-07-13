@@ -776,12 +776,14 @@ export class BinanceExchange extends BaseExchange {
     }
 
     if (!fromPrice || !toPrice) {
-      if (side === "buy") {
-        fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
-        toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
-      } else if (side === "sell") {
-        fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
-        toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
+      if (opts.fromPriceDiff && opts.toPriceDiff) {
+        if (side === "buy") {
+          fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
+          toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
+        } else if (side === "sell") {
+          fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
+          toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
+        }
       }
     }
 
