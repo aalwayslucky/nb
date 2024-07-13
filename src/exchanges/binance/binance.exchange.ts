@@ -768,14 +768,14 @@ export class BinanceExchange extends BaseExchange {
     }
     let fromPrice = null;
     let toPrice = null;
-    if (opts.fromPrice) {
+    if (opts.fromPrice !== undefined) {
       fromPrice = opts.fromPrice;
     }
-    if (opts.toPrice) {
+    if (opts.toPrice !== undefined) {
       toPrice = opts.toPrice;
     }
 
-    if (!fromPrice || !toPrice) {
+    if (!fromPrice && !toPrice) {
       if (opts.fromPriceDiff && opts.toPriceDiff) {
         if (side === "buy") {
           fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
@@ -790,6 +790,7 @@ export class BinanceExchange extends BaseExchange {
     if (!fromPrice || !toPrice) {
       return { error: { symbol: opts.symbol, message: "Invalid price" } };
     }
+    this.emitter.emit("info", `Split order from ${fromPrice} to ${toPrice}`);
 
     const avgPrice = (fromPrice + toPrice) / 2;
 
