@@ -878,6 +878,8 @@ export class BinanceExchange extends BaseExchange {
 
       orders.push(req);
     }
+    // emit all orders for debug
+    this.emitter.emit("info", `Split orders: ${JSON.stringify(orders)}`);
 
     return orders;
   };
