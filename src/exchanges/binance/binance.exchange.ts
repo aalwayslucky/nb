@@ -768,10 +768,14 @@ export class BinanceExchange extends BaseExchange {
     }
     let fromPrice = null;
     let toPrice = null;
-    if (opts.fromPrice && opts.toPrice) {
+    if (opts.fromPrice) {
       fromPrice = opts.fromPrice;
+    }
+    if (opts.toPrice) {
       toPrice = opts.toPrice;
-    } else {
+    }
+
+    if (!fromPrice || !toPrice) {
       if (side === "buy") {
         fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
         toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
