@@ -758,9 +758,6 @@ export class BinanceExchange extends BaseExchange {
     const pPrice = market.precision.price;
     const pAmount = market.precision.amount;
 
-    let fromPrice = null;
-    let toPrice = null;
-
     if (side === undefined) {
       return {
         error: {
@@ -769,13 +766,19 @@ export class BinanceExchange extends BaseExchange {
         },
       };
     }
-
-    if (side === "buy") {
-      fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
-      toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
-    } else if (side === "sell") {
-      fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
-      toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
+    let fromPrice = null;
+    let toPrice = null;
+    if (opts.fromPrice && opts.toPrice) {
+      fromPrice = opts.fromPrice;
+      toPrice = opts.toPrice;
+    } else {
+      if (side === "buy") {
+        fromPrice = ticker.last - (ticker.last * opts.fromPriceDiff) / 100;
+        toPrice = ticker.last - (ticker.last * opts.toPriceDiff) / 100;
+      } else if (side === "sell") {
+        fromPrice = ticker.last + (ticker.last * opts.fromPriceDiff) / 100;
+        toPrice = ticker.last + (ticker.last * opts.toPriceDiff) / 100;
+      }
     }
 
     if (!fromPrice || !toPrice) {
