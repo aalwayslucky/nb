@@ -1,6 +1,6 @@
 {
   "name": "safe-cex",
-  "version": "9.2.0",
+  "version": "9.2.1",
   "main": "dist/index.js",
   "license": "MIT",
   "scripts": {
@@ -21,7 +21,7 @@
     "@types/create-hash": "^1.2.2",
     "@types/create-hmac": "^1.1.0",
     "@types/lodash": "^4.14.191",
-    "@types/node": "^20.14.10",
+    "@types/node": "^18.14.10",
     "@types/qs": "^6.9.7",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
@@ -48,6 +48,7 @@
     "nanoid": "~5.0.6",
     "p-iteration": "^1.1.8",
     "qs": "^6.11.0",
-    "tiny-emitter": "^2.1.0"
+    "tiny-emitter": "^2.1.0",
+    "tslib": "^2.6.3"
   }
 }
