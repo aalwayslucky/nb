@@ -123,17 +123,6 @@ class OrderQueueManager {
         .catch((error) => {
           this.emitter.emit("error", "An unexpected error occurred:", error);
         });
-
-      // Adjust sleeping time based on the remaining rate limit
-      const remainingTime10s = 10000 - (now - this.orderTimestamps10s[0]);
-      const remainingLots10s = Math.floor(
-        (300 - this.orderTimestamps10s.length) / 5
-      );
-
-      const sleepTime10s =
-        remainingLots10s > 0 ? remainingTime10s / remainingLots10s : 1000;
-
-      await sleep(Math.min(sleepTime10s));
     }
   }
 }
