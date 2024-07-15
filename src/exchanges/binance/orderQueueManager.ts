@@ -68,10 +68,12 @@ class OrderQueueManager {
   }
 
   private async processOrders() {
-    const sleep = (ms: number) =>
-      this.emitter.emit("waitingtime", ms) &&
-      new Promise((resolve) => setTimeout(resolve, ms));
-
+    const sleep = (ms: number) => {
+      if (ms > 1000) {
+        this.emitter.emit("waitingtime", ms);
+      }
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    };
     while (this.queue.length > 0) {
       // Remove timestamps older than 10 seconds and 60 seconds
       const now = Date.now();
