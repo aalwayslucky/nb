@@ -33,6 +33,7 @@ class OrderQueueManager {
       release();
     }
   };
+
   destroyQueue = async () => {
     const release = await this.mutex.acquire();
     try {
@@ -45,6 +46,7 @@ class OrderQueueManager {
       release();
     }
   };
+
   isProcessing() {
     return this.processing;
   }
@@ -85,11 +87,12 @@ class OrderQueueManager {
         this.orderTimestamps10s.length >= 300 ||
         this.orderTimestamps60s.length >= 1200
       ) {
-        await sleep(
+        const waitTime =
           now -
-            Math.min(this.orderTimestamps10s[0], this.orderTimestamps60s[0]) +
-            1
-        );
+          Math.min(this.orderTimestamps10s[0], this.orderTimestamps60s[0]) +
+          1;
+        await this.emitWaitingTime(waitTime);
+        await sleep(waitTime);
         continue;
       }
 
@@ -135,7 +138,19 @@ class OrderQueueManager {
       const sleepTime60s =
         remainingLots60s > 0 ? remainingTime60s / remainingLots60s : 1000;
 
-      await sleep(Math.min(sleepTime10s, sleepTime60s));
+      const waitTime = Math.min(sleepTime10s, sleepTime60s);
+      if (waitTime > 0) {
+        await this.emitWaitingTime(waitTime);
+      }
+      await sleep(waitTime);
+    }
+  }
+
+  private async emitWaitingTime(waitTime: number) {
+    while (waitTime > 0) {
+      this.emitter.emit("waitingTime", waitTime);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      waitTime -= 1000;
     }
   }
 }
