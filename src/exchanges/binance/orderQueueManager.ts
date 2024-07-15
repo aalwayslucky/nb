@@ -33,7 +33,6 @@ class OrderQueueManager {
       release();
     }
   };
-
   destroyQueue = async () => {
     const release = await this.mutex.acquire();
     try {
@@ -46,7 +45,6 @@ class OrderQueueManager {
       release();
     }
   };
-
   isProcessing() {
     return this.processing;
   }
@@ -71,9 +69,11 @@ class OrderQueueManager {
 
   private async processOrders() {
     const sleep = (ms: number) => {
+      if (ms > 1000) {
+        this.emitter.emit("waitingtime", ms);
+      }
       return new Promise((resolve) => setTimeout(resolve, ms));
     };
-
     while (this.queue.length > 0) {
       // Remove timestamps older than 10 seconds and 60 seconds
       const now = Date.now();
@@ -88,7 +88,11 @@ class OrderQueueManager {
         this.orderTimestamps10s.length >= 300 ||
         this.orderTimestamps60s.length >= 1200
       ) {
-        await sleep(1000); // Fixed sleep time of 1000 ms
+        await sleep(
+          now -
+            Math.min(this.orderTimestamps10s[0], this.orderTimestamps60s[0]) +
+            1
+        );
         continue;
       }
 
@@ -108,7 +112,6 @@ class OrderQueueManager {
         this.orderTimestamps10s.push(now);
         this.orderTimestamps60s.push(now);
       }
-
       this.placeOrderBatchFast(batch)
         .then((orderResults) => {
           const successfulOrderIds = orderResults
@@ -121,7 +124,16 @@ class OrderQueueManager {
           this.emitter.emit("error", "An unexpected error occurred:", error);
         });
 
-      await sleep(1000); // Fixed sleep time of 1000 ms
+      // Adjust sleeping time based on the remaining rate limit
+      const remainingTime10s = 10000 - (now - this.orderTimestamps10s[0]);
+      const remainingLots10s = Math.floor(
+        (300 - this.orderTimestamps10s.length) / 5
+      );
+
+      const sleepTime10s =
+        remainingLots10s > 0 ? remainingTime10s / remainingLots10s : 1000;
+
+      await sleep(Math.min(sleepTime10s));
     }
   }
 }
