@@ -32,6 +32,8 @@ export const defaultStore: StoreData = {
 
 export class DefaultStore implements Store {
   private listeners = new Set<(data: StoreData) => void>();
+  private orderListeners = new Set<(data: Order[]) => void>();
+
   private state: Writable<StoreData> = clone(defaultStore);
 
   get latency() {
@@ -112,7 +114,10 @@ export class DefaultStore implements Store {
     this.listeners.add(cb);
     return () => this.listeners.delete(cb);
   };
-
+  subscribeOrders = (cb: (orders: Order[]) => void) => {
+    this.orderListeners.add(cb);
+    return () => this.orderListeners.delete(cb);
+  };
   removeOrders = (orders: Array<Pick<Order, "id">>) => {
     orders.forEach((order) => {
       const idx = this.state.orders.findIndex((o) => o.id === order.id);
