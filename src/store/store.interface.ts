@@ -4,6 +4,7 @@ export interface Store {
   update: (changes: Partial<StoreData>) => void;
   reset: () => void;
   subscribe: (cb: (data: StoreData) => void) => () => void;
+  subscribeOrders: (cb: (data: Order[]) => void) => () => void;
 
   setSetting: (key: "isHedged", value: boolean) => void;
 
