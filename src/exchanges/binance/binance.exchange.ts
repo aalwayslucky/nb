@@ -6,7 +6,6 @@ import chunk from "lodash/chunk";
 import groupBy from "lodash/groupBy";
 import omit from "lodash/omit";
 import times from "lodash/times";
-import { forEachSeries } from "p-iteration";
 import OrderQueueManager from "./orderQueueManager";
 
 import type { Store } from "../../store/store.interface";
