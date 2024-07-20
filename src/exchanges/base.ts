@@ -83,6 +83,9 @@ export class BaseExchange implements Exchange {
     this.store.subscribe((data) => {
       this.emitter.emit("update", data);
     });
+    this.store.subscribeOrders((data) => {
+      this.emitter.emit("update", data);
+    });
   }
 
   onWSPublicClose = () => {};
