@@ -6,6 +6,7 @@ import chunk from "lodash/chunk";
 import groupBy from "lodash/groupBy";
 import omit from "lodash/omit";
 import times from "lodash/times";
+import { forEachSeries } from "p-iteration";
 import OrderQueueManager from "./orderQueueManager";
 
 import type { Store } from "../../store/store.interface";
@@ -556,7 +557,6 @@ export class BinanceExchange extends BaseExchange {
       }
     }
   };
-
   cancelOrders = async (orders: Order[]) => {
     try {
       const groupedBySymbol = groupBy(orders, "symbol");
@@ -567,44 +567,37 @@ export class BinanceExchange extends BaseExchange {
         })
       );
 
-      const promises: Promise<any>[] = [];
-
-      requests.forEach((request) => {
+      const promises = requests.map(async (request) => {
         if (request.origClientOrderIdList.length === 1) {
-          promises.push(
-            this.xhr
-              .delete(ENDPOINTS.ORDER, {
-                params: {
-                  symbol: request.symbol,
-                  origClientOrderId: request.origClientOrderIdList[0],
-                },
-              })
-              .then(() => {
-                this.store.removeOrders(
-                  request.origClientOrderIdList.map((id) => ({ id }))
-                );
-              })
-          );
+          return this.xhr.delete(ENDPOINTS.ORDER, {
+            params: {
+              symbol: request.symbol,
+              origClientOrderId: request.origClientOrderIdList[0],
+            },
+          });
         } else {
           const lots = chunk(request.origClientOrderIdList, 10);
-          lots.forEach((lot) => {
-            promises.push(
-              this.xhr
-                .delete(ENDPOINTS.BATCH_ORDERS, {
-                  params: {
-                    symbol: request.symbol,
-                    origClientOrderIdList: JSON.stringify(lot),
-                  },
-                })
-                .then(() => {
-                  this.store.removeOrders(lot.map((id) => ({ id })));
-                })
-            );
-          });
+          return Promise.all(
+            lots.map((lot) =>
+              this.xhr.delete(ENDPOINTS.BATCH_ORDERS, {
+                params: {
+                  symbol: request.symbol,
+                  origClientOrderIdList: JSON.stringify(lot),
+                },
+              })
+            )
+          );
         }
       });
 
-      await Promise.all(promises);
+      const results = await Promise.all(promises);
+
+      results.forEach((_result, index) => {
+        const request = requests[index];
+        this.store.removeOrders(
+          request.origClientOrderIdList.map((id) => ({ id }))
+        );
+      });
     } catch (err: any) {
       this.emitter.emit("error", err?.response?.data?.msg || err?.message);
     }
