@@ -567,31 +567,41 @@ export class BinanceExchange extends BaseExchange {
         })
       );
 
-      const promises = requests.map(async (request) => {
+      const promises: Promise<any>[] = [];
+
+      requests.forEach((request) => {
         if (request.origClientOrderIdList.length === 1) {
-          await this.xhr.delete(ENDPOINTS.ORDER, {
-            params: {
-              symbol: request.symbol,
-              origClientOrderId: request.origClientOrderIdList[0],
-            },
-          });
-        } else {
-          const lots = chunk(request.origClientOrderIdList, 10);
-          await Promise.all(
-            lots.map(async (lot) => {
-              await this.xhr.delete(ENDPOINTS.BATCH_ORDERS, {
+          promises.push(
+            this.xhr
+              .delete(ENDPOINTS.ORDER, {
                 params: {
                   symbol: request.symbol,
-                  origClientOrderIdList: JSON.stringify(lot),
+                  origClientOrderId: request.origClientOrderIdList[0],
                 },
-              });
-            })
+              })
+              .then(() => {
+                this.store.removeOrders(
+                  request.origClientOrderIdList.map((id) => ({ id }))
+                );
+              })
           );
+        } else {
+          const lots = chunk(request.origClientOrderIdList, 10);
+          lots.forEach((lot) => {
+            promises.push(
+              this.xhr
+                .delete(ENDPOINTS.BATCH_ORDERS, {
+                  params: {
+                    symbol: request.symbol,
+                    origClientOrderIdList: JSON.stringify(lot),
+                  },
+                })
+                .then(() => {
+                  this.store.removeOrders(lot.map((id) => ({ id })));
+                })
+            );
+          });
         }
-
-        this.store.removeOrders(
-          request.origClientOrderIdList.map((id) => ({ id }))
-        );
       });
 
       await Promise.all(promises);
