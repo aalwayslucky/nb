@@ -560,35 +560,44 @@ export class BinanceExchange extends BaseExchange {
   cancelOrders = async (orders: Order[]) => {
     try {
       const groupedBySymbol = groupBy(orders, "symbol");
-      const requests = Object.entries(groupedBySymbol).map(
-        ([symbol, symbolOrders]) => ({
-          symbol,
-          origClientOrderIdList: symbolOrders.map((o) => o.id),
-        })
+      const requests = Object.entries(groupedBySymbol).flatMap(
+        ([symbol, symbolOrders]) => {
+          if (symbolOrders.length === 1) {
+            return [
+              {
+                symbol,
+                origClientOrderIdList: [symbolOrders[0].id],
+              },
+            ];
+          } else {
+            const lots = chunk(
+              symbolOrders.map((o) => o.id),
+              10
+            );
+            return lots.map((lot) => ({
+              symbol,
+              origClientOrderIdList: lot,
+            }));
+          }
+        }
       );
 
-      const promises = requests.map(async (request) => {
-        if (request.origClientOrderIdList.length === 1) {
-          return this.xhr.delete(ENDPOINTS.ORDER, {
+      const promises = requests.map((request) =>
+        this.xhr.delete(
+          request.origClientOrderIdList.length === 1
+            ? ENDPOINTS.ORDER
+            : ENDPOINTS.BATCH_ORDERS,
+          {
             params: {
               symbol: request.symbol,
-              origClientOrderId: request.origClientOrderIdList[0],
+              origClientOrderIdList:
+                request.origClientOrderIdList.length === 1
+                  ? request.origClientOrderIdList[0]
+                  : JSON.stringify(request.origClientOrderIdList),
             },
-          });
-        } else {
-          const lots = chunk(request.origClientOrderIdList, 10);
-          return Promise.all(
-            lots.map((lot) =>
-              this.xhr.delete(ENDPOINTS.BATCH_ORDERS, {
-                params: {
-                  symbol: request.symbol,
-                  origClientOrderIdList: JSON.stringify(lot),
-                },
-              })
-            )
-          );
-        }
-      });
+          }
+        )
+      );
 
       const results = await Promise.all(promises);
 
