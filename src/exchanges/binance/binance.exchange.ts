@@ -6,6 +6,7 @@ import chunk from "lodash/chunk";
 import groupBy from "lodash/groupBy";
 import omit from "lodash/omit";
 import times from "lodash/times";
+import { forEachSeries } from "p-iteration";
 import OrderQueueManager from "./orderQueueManager";
 
 import type { Store } from "../../store/store.interface";
@@ -567,46 +568,34 @@ export class BinanceExchange extends BaseExchange {
         })
       );
 
-      // Delay function
-      const delay = (ms: number) =>
-        new Promise((resolve) => setTimeout(resolve, ms));
-
-      let promiseChain = Promise.resolve(); // Initial promise chain
-      const allPromises: any = [];
-
-      requests.forEach((request) => {
-        promiseChain = promiseChain.then(async () => {
-          if (request.origClientOrderIdList.length === 1) {
-            allPromises.push(
-              this.xhr.delete(ENDPOINTS.ORDER, {
+      const promises = requests.map(async (request) => {
+        if (request.origClientOrderIdList.length === 1) {
+          await this.xhr.delete(ENDPOINTS.ORDER, {
+            params: {
+              symbol: request.symbol,
+              origClientOrderId: request.origClientOrderIdList[0],
+            },
+          });
+        } else {
+          const lots = chunk(request.origClientOrderIdList, 10);
+          await Promise.all(
+            lots.map(async (lot) => {
+              await this.xhr.delete(ENDPOINTS.BATCH_ORDERS, {
                 params: {
                   symbol: request.symbol,
-                  origClientOrderId: request.origClientOrderIdList[0],
+                  origClientOrderIdList: JSON.stringify(lot),
                 },
-              })
-            );
-          } else {
-            const lots = chunk(request.origClientOrderIdList, 10);
-            lots.forEach((lot) => {
-              allPromises.push(
-                this.xhr.delete(ENDPOINTS.BATCH_ORDERS, {
-                  params: {
-                    symbol: request.symbol,
-                    origClientOrderIdList: JSON.stringify(lot),
-                  },
-                })
-              );
-            });
-          }
-          await delay(20); // Ensure a 20ms delay before the next request
-        });
+              });
+            })
+          );
+        }
+
+        this.store.removeOrders(
+          request.origClientOrderIdList.map((id) => ({ id }))
+        );
       });
 
-      await promiseChain; // Wait for the promise chain to complete
-      await Promise.all(allPromises); // Then wait for all requests to complete
-
-      // Remove orders from the store
-      this.store.removeOrders(orders.map((order) => ({ id: order.id })));
+      await Promise.all(promises);
     } catch (err: any) {
       this.emitter.emit("error", err?.response?.data?.msg || err?.message);
     }
@@ -614,22 +603,10 @@ export class BinanceExchange extends BaseExchange {
 
   cancelSymbolOrders = async (symbol: string) => {
     try {
-      // Assuming `getOrderIdsForSymbol` is a method that fetches all order IDs for the given symbol
-      const orderIds = this.store.orders
-        .filter((o) => o.symbol === symbol)
-        .map((o) => o.id);
+      await this.xhr.delete(ENDPOINTS.CANCEL_SYMBOL_ORDERS, {
+        params: { symbol },
+      });
 
-      // Create a delete request for each order ID
-      const deletePromises = orderIds.map((orderId) =>
-        this.xhr.delete(ENDPOINTS.CANCEL_SYMBOL_ORDERS, {
-          params: { symbol, orderId }, // Assuming the API supports deleting by orderId
-        })
-      );
-
-      // Execute all delete requests in parallel
-      await Promise.all(deletePromises);
-
-      // Remove orders from the store
       this.store.removeOrders(
         this.store.orders.filter((o) => o.symbol === symbol)
       );
