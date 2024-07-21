@@ -583,30 +583,38 @@ export class BinanceExchange extends BaseExchange {
       );
 
       const promises = requests.map((request) =>
-        this.xhr.delete(
-          request.origClientOrderIdList.length === 1
-            ? ENDPOINTS.ORDER
-            : ENDPOINTS.BATCH_ORDERS,
-          {
-            params: {
-              symbol: request.symbol,
-              origClientOrderIdList:
-                request.origClientOrderIdList.length === 1
-                  ? request.origClientOrderIdList[0]
-                  : JSON.stringify(request.origClientOrderIdList),
-            },
-          }
-        )
+        this.xhr
+          .delete(
+            request.origClientOrderIdList.length === 1
+              ? ENDPOINTS.ORDER
+              : ENDPOINTS.BATCH_ORDERS,
+            {
+              params: {
+                symbol: request.symbol,
+                origClientOrderIdList:
+                  request.origClientOrderIdList.length === 1
+                    ? request.origClientOrderIdList[0]
+                    : JSON.stringify(request.origClientOrderIdList),
+              },
+            }
+          )
+          .then(() => {
+            // Remove orders from the store as each promise resolves
+            this.store.removeOrders(
+              request.origClientOrderIdList.map((id) => ({ id }))
+            );
+          })
+          .catch((err) => {
+            // Handle individual errors
+            this.emitter.emit(
+              "error",
+              err?.response?.data?.msg || err?.message
+            );
+          })
       );
 
-      const results = await Promise.all(promises);
-
-      results.forEach((_result, index) => {
-        const request = requests[index];
-        this.store.removeOrders(
-          request.origClientOrderIdList.map((id) => ({ id }))
-        );
-      });
+      // Send all cancellation requests at the same time
+      await Promise.allSettled(promises);
     } catch (err: any) {
       this.emitter.emit("error", err?.response?.data?.msg || err?.message);
     }
