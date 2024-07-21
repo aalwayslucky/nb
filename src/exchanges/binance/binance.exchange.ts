@@ -582,7 +582,7 @@ export class BinanceExchange extends BaseExchange {
       );
 
       const promises = requests.map((request) =>
-        this.xhr
+        this.unlimitedXHR
           .delete(
             request.origClientOrderIdList.length === 1
               ? ENDPOINTS.ORDER
