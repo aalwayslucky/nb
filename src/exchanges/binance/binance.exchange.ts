@@ -1169,7 +1169,7 @@ export class BinanceExchange extends BaseExchange {
             orderResults.push({
               orderId: o.newClientOrderId,
               symbol: o.symbol,
-              error: err?.response?.data?.msg || err?.message,
+              error: err,
             });
           });
         }
