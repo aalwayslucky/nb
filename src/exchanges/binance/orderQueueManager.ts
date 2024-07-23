@@ -115,7 +115,7 @@ class OrderQueueManager {
             .filter((orderResult) => orderResult.error === null)
             .map((orderResult) => orderResult.orderId);
           this.results.push(...successfulOrderIds);
-          this.emitter.emit("batchResolved", orderResults); // Emit successful order IDs
+          this.emitter.emit("batchResolved", orderResults[0].error); // Emit successful order IDs
         })
         .catch((error) => {
           this.emitter.emit("error", "An unexpected error occurred:", error);

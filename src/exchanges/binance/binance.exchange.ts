@@ -1121,58 +1121,36 @@ export class BinanceExchange extends BaseExchange {
     const orderResults = [] as OrderResult[];
 
     const promises = lots.map(async (lot) => {
-      if (lot.length === 1) {
-        try {
-          await this.unlimitedXHR.post(ENDPOINTS.ORDER, lot[0]);
-          orderResults.push({
-            orderId: lot[0].newClientOrderId,
-            error: null,
-            symbol: lot[0].symbol,
-          });
-        } catch (err: any) {
-          orderResults.push({
-            orderId: lot[0].newClientOrderId,
-            error: err,
-            symbol: lot[0].symbol,
-          });
-        }
-      }
+      try {
+        const { data } = await this.unlimitedXHR.post(ENDPOINTS.BATCH_ORDERS, {
+          batchOrders: JSON.stringify(lot),
+        });
+        await this.sleep(5);
 
-      if (lot.length > 1) {
-        try {
-          const { data } = await this.unlimitedXHR.post(
-            ENDPOINTS.BATCH_ORDERS,
-            {
-              batchOrders: JSON.stringify(lot),
-            }
-          );
-          await this.sleep(5);
-
-          data?.forEach?.((o: any, index: number) => {
-            const originalOrder = lot[index];
-            if (o.code) {
-              orderResults.push({
-                orderId: originalOrder.newClientOrderId,
-                error: o,
-                symbol: originalOrder.symbol,
-              });
-            } else {
-              orderResults.push({
-                orderId: originalOrder.newClientOrderId,
-                error: null,
-                symbol: originalOrder.symbol,
-              });
-            }
-          });
-        } catch (err: any) {
-          lot.forEach((o: any) => {
+        data?.forEach?.((o: any, index: number) => {
+          const originalOrder = lot[index];
+          if (o.code) {
             orderResults.push({
-              orderId: o.newClientOrderId,
-              symbol: o.symbol,
-              error: err,
+              orderId: originalOrder.newClientOrderId,
+              error: o,
+              symbol: originalOrder.symbol,
             });
+          } else {
+            orderResults.push({
+              orderId: originalOrder.newClientOrderId,
+              error: null,
+              symbol: originalOrder.symbol,
+            });
+          }
+        });
+      } catch (err: any) {
+        lot.forEach((o: any) => {
+          orderResults.push({
+            orderId: o.newClientOrderId,
+            symbol: o.symbol,
+            error: o,
           });
-        }
+        });
       }
     });
 
