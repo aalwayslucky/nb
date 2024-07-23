@@ -1132,7 +1132,7 @@ export class BinanceExchange extends BaseExchange {
         } catch (err: any) {
           orderResults.push({
             orderId: lot[0].newClientOrderId,
-            error: err?.response?.data?.msg || err?.message,
+            error: err,
             symbol: lot[0].symbol,
           });
         }
@@ -1156,14 +1156,12 @@ export class BinanceExchange extends BaseExchange {
                 error: o,
                 symbol: originalOrder.symbol,
               });
-              this.emitter.emit("error", `First error: ${o}`);
             } else {
               orderResults.push({
                 orderId: originalOrder.newClientOrderId,
                 error: null,
                 symbol: originalOrder.symbol,
               });
-              this.emitter.emit("error", `No error`);
             }
           });
         } catch (err: any) {
@@ -1173,10 +1171,6 @@ export class BinanceExchange extends BaseExchange {
               symbol: o.symbol,
               error: err,
             });
-            this.emitter.emit(
-              "error",
-              `Error placing order catch err:any: ${err}`
-            );
           });
         }
       }
