@@ -1146,7 +1146,7 @@ export class BinanceExchange extends BaseExchange {
               batchOrders: JSON.stringify(lot),
             }
           );
-          await this.sleep(70);
+          await this.sleep(5);
 
           data?.forEach?.((o: any, index: number) => {
             const originalOrder = lot[index];
@@ -1156,12 +1156,14 @@ export class BinanceExchange extends BaseExchange {
                 error: o,
                 symbol: originalOrder.symbol,
               });
+              this.emitter.emit("error", `First error: ${o}`);
             } else {
               orderResults.push({
                 orderId: originalOrder.newClientOrderId,
                 error: null,
                 symbol: originalOrder.symbol,
               });
+              this.emitter.emit("error", `No error`);
             }
           });
         } catch (err: any) {
@@ -1171,6 +1173,10 @@ export class BinanceExchange extends BaseExchange {
               symbol: o.symbol,
               error: err,
             });
+            this.emitter.emit(
+              "error",
+              `Error placing order catch err:any: ${err}`
+            );
           });
         }
       }
