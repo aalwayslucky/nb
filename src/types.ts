@@ -324,5 +324,8 @@ export type SplitOrderResult = {
 export type OrderResult = {
   symbol: string;
   orderId: string;
-  error: any;
+  error: {
+    code: number;
+    message: string;
+  } | null;
 };
