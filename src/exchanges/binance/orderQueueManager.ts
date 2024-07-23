@@ -1,9 +1,8 @@
 import { Mutex } from "async-mutex";
+import { OrderResult } from "../../types";
 
 class OrderQueueManager {
-  private placeOrderBatchFast: (
-    payloads: any[]
-  ) => Promise<Array<{ orderId: string; error: any }>>;
+  private placeOrderBatchFast: (payloads: any[]) => Promise<Array<OrderResult>>;
   private queue: any[] = [];
   private mutex = new Mutex();
   private processing = false;
@@ -13,9 +12,7 @@ class OrderQueueManager {
 
   constructor(
     private emitter: any,
-    placeOrderBatchFast: (
-      payloads: any[]
-    ) => Promise<Array<{ orderId: string; error: any }>>
+    placeOrderBatchFast: (payloads: any[]) => Promise<Array<OrderResult>>
   ) {
     this.placeOrderBatchFast = placeOrderBatchFast;
   }

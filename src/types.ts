@@ -320,3 +320,9 @@ export type SplitOrderResult = {
   data: string[];
   errors: SplitOrderError[];
 };
+
+export type OrderResult = {
+  symbol: string;
+  orderId: string;
+  error: any;
+};

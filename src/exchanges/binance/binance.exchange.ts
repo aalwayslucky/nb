@@ -17,6 +17,7 @@ import type {
   OHLCVOptions,
   Order,
   OrderBook,
+  OrderResult,
   PayloadOrder,
   PlaceOrderOpts,
   Position,
@@ -1114,13 +1115,10 @@ export class BinanceExchange extends BaseExchange {
   private sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
   private placeOrderBatchFast = async (payloads: any[]) => {
     const lots = chunk(payloads, 5);
-    const orderResults = [] as {
-      orderId: string;
-      error: any;
-      symbol: string;
-    }[];
+    const orderResults = [] as OrderResult[];
 
     const promises = lots.map(async (lot) => {
       if (lot.length === 1) {
