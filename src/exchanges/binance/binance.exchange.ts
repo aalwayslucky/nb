@@ -1116,17 +1116,26 @@ export class BinanceExchange extends BaseExchange {
   }
   private placeOrderBatchFast = async (payloads: any[]) => {
     const lots = chunk(payloads, 5);
-    const orderResults = [] as { orderId: string; error: any }[];
+    const orderResults = [] as {
+      orderId: string;
+      error: any;
+      symbol: string;
+    }[];
 
     const promises = lots.map(async (lot) => {
       if (lot.length === 1) {
         try {
           await this.unlimitedXHR.post(ENDPOINTS.ORDER, lot[0]);
-          orderResults.push({ orderId: lot[0].newClientOrderId, error: null });
+          orderResults.push({
+            orderId: lot[0].newClientOrderId,
+            error: null,
+            symbol: lot[0].symbol,
+          });
         } catch (err: any) {
           orderResults.push({
             orderId: lot[0].newClientOrderId,
             error: err?.response?.data?.msg || err?.message,
+            symbol: lot[0].symbol,
           });
         }
       }
@@ -1147,11 +1156,13 @@ export class BinanceExchange extends BaseExchange {
               orderResults.push({
                 orderId: originalOrder.newClientOrderId,
                 error: o,
+                symbol: originalOrder.symbol,
               });
             } else {
               orderResults.push({
                 orderId: originalOrder.newClientOrderId,
                 error: null,
+                symbol: originalOrder.symbol,
               });
             }
           });
@@ -1159,6 +1170,7 @@ export class BinanceExchange extends BaseExchange {
           lot.forEach((o: any) => {
             orderResults.push({
               orderId: o.newClientOrderId,
+              symbol: o.symbol,
               error: err?.response?.data?.msg || err?.message,
             });
           });
