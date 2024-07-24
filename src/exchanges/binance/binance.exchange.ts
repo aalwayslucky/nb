@@ -21,7 +21,6 @@ import type {
   PayloadOrder,
   PlaceOrderOpts,
   Position,
-  SingleOrderError,
   SplidOrderOpts,
   SplitOrderError,
   SplitOrderResult,
