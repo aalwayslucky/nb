@@ -317,15 +317,18 @@ export type SplitOrderError = {
 };
 
 export type SplitOrderResult = {
-  data: string[];
-  errors: SplitOrderError[];
+  successfulOrders: string[];
+  NimbusErrors: SplitOrderError[];
+  BinanceErrors: SingleOrderError[];
 };
 
 export type OrderResult = {
   symbol: string;
   orderId: string;
-  error: {
-    code: number;
-    message: string;
-  } | null;
+  error: SingleOrderError | null;
+};
+
+export type SingleOrderError = {
+  code: number;
+  message: string;
 };

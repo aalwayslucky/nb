@@ -1,5 +1,5 @@
 import { Mutex } from "async-mutex";
-import { OrderResult } from "../../types";
+import { OrderResult, SingleOrderError } from "../../types";
 
 class OrderQueueManager {
   private placeOrderBatchFast: (payloads: any[]) => Promise<Array<OrderResult>>;
@@ -7,6 +7,7 @@ class OrderQueueManager {
   private mutex = new Mutex();
   private processing = false;
   private results: string[] = [];
+  private errors: SingleOrderError[] = [];
   private orderTimestamps10s: number[] = []; // Array to store the timestamps of each order in the last 10 seconds
   private orderTimestamps60s: number[] = []; // Array to store the timestamps of each order in the last 60 seconds
 
@@ -50,6 +51,11 @@ class OrderQueueManager {
     const resultsCopy = [...this.results];
     this.results = [];
     return resultsCopy;
+  }
+  getErrors() {
+    const errorsCopy = [...this.errors];
+    this.errors = [];
+    return errorsCopy;
   }
 
   private async startProcessing() {
@@ -115,6 +121,15 @@ class OrderQueueManager {
             .filter((orderResult) => orderResult.error === null)
             .map((orderResult) => orderResult.orderId);
           this.results.push(...successfulOrderIds);
+          const failedOrders = orderResults.filter(
+            (orderResult) => orderResult.error !== null
+          );
+
+          this.errors.push(
+            ...failedOrders
+              .map((order) => order.error)
+              .filter((error): error is SingleOrderError => error !== null)
+          );
           this.emitter.emit("batchResolved", orderResults); // Emit successful order IDs
         })
         .catch((error) => {

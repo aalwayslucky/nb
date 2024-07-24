@@ -685,13 +685,13 @@ export class BinanceExchange extends BaseExchange {
     // Separate valid orders from errors
     const results = orders.map((o) => this.formatCreateSplitOrders(o));
     const validOrders: PayloadOrder[] = [];
-    const errors: SplitOrderError[] = [];
+    const NimbusErrors: SplitOrderError[] = [];
 
     results.forEach((result) => {
       if (Array.isArray(result)) {
         validOrders.push(...result);
       } else if (result.error) {
-        errors.push(result.error);
+        NimbusErrors.push(result.error);
       }
     });
 
@@ -700,9 +700,10 @@ export class BinanceExchange extends BaseExchange {
     while (this.orderQueueManager.isProcessing()) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    const data = this.orderQueueManager.getResults();
+    const successfulOrders = this.orderQueueManager.getResults();
+    const BinanceErrors = this.orderQueueManager.getErrors();
 
-    return { data, errors };
+    return { successfulOrders, NimbusErrors, BinanceErrors };
   };
 
   private formatCreateSplitOrders = (
