@@ -1,5 +1,5 @@
 import { Mutex } from "async-mutex";
-import { OrderResult, SingleOrderError } from "../../types";
+import { OrderResult } from "../../types";
 
 class OrderQueueManager {
   private placeOrderBatchFast: (payloads: any[]) => Promise<Array<OrderResult>>;
