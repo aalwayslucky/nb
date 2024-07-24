@@ -7,7 +7,7 @@ class OrderQueueManager {
   private mutex = new Mutex();
   private processing = false;
   private results: string[] = [];
-  private errors: SingleOrderError[] = [];
+  private resultsCollector: OrderResult[] = [];
   private orderTimestamps10s: number[] = []; // Array to store the timestamps of each order in the last 10 seconds
   private orderTimestamps60s: number[] = []; // Array to store the timestamps of each order in the last 60 seconds
 
@@ -52,10 +52,10 @@ class OrderQueueManager {
     this.results = [];
     return resultsCopy;
   }
-  getErrors() {
-    const errorsCopy = [...this.errors];
-    this.errors = [];
-    return errorsCopy;
+  getResultsCollected() {
+    const resultsCollectorCopy = [...this.resultsCollector];
+    this.resultsCollector = [];
+    return resultsCollectorCopy;
   }
 
   private async startProcessing() {
@@ -121,14 +121,9 @@ class OrderQueueManager {
             .filter((orderResult) => orderResult.error === null)
             .map((orderResult) => orderResult.orderId);
           this.results.push(...successfulOrderIds);
-          const failedOrders = orderResults.filter(
-            (orderResult) => orderResult.error !== null
-          );
 
-          this.errors.push(
-            ...failedOrders
-              .map((order) => order.error)
-              .filter((error): error is SingleOrderError => error !== null)
+          orderResults.forEach((orderResult) =>
+            this.resultsCollector.push(orderResult)
           );
           this.emitter.emit("batchResolved", orderResults); // Emit successful order IDs
         })

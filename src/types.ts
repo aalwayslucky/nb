@@ -319,7 +319,7 @@ export type SplitOrderError = {
 export type SplitOrderResult = {
   successfulOrders: string[];
   NimbusErrors: SplitOrderError[];
-  BinanceErrors: SingleOrderError[];
+  BinanceErrors: OrderResult[];
 };
 
 export type OrderResult = {

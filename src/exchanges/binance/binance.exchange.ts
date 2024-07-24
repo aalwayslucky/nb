@@ -701,7 +701,7 @@ export class BinanceExchange extends BaseExchange {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     const successfulOrders = this.orderQueueManager.getResults();
-    const BinanceErrors = this.orderQueueManager.getErrors();
+    const BinanceErrors = this.orderQueueManager.getResultsCollected();
 
     return { successfulOrders, NimbusErrors, BinanceErrors };
   };
