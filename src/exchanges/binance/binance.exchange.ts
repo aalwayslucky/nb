@@ -696,14 +696,26 @@ export class BinanceExchange extends BaseExchange {
     });
 
     await this.orderQueueManager.enqueueOrders(validOrders);
+    this.emitter.emit("info", "Waiting for split orders to be processed");
 
     while (this.orderQueueManager.isProcessing()) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    this.emitter.emit("info", "Split orders processed");
+    this.emitter.emit("info", "Collecting split orders results");
     const successfulOrders = this.orderQueueManager.getResults();
     const BinanceErrors = this.orderQueueManager.getResultsCollected();
+    this.emitter.emit("info", "Collected split orders results");
 
-    return { successfulOrders, NimbusErrors, BinanceErrors };
+    const orderReults: SplitOrderResult = {
+      successfulOrders,
+      NimbusErrors,
+      BinanceErrors,
+    };
+    this.emitter.emit("info", "Returning split orders results");
+    this.emitter.emit("info", orderReults);
+
+    return orderReults;
   };
 
   private formatCreateSplitOrders = (
@@ -1162,6 +1174,11 @@ export class BinanceExchange extends BaseExchange {
     });
 
     await Promise.all(promises);
+    this.emitter.emit(
+      "info",
+      "Returning split orders results from placeorderbatchfast"
+    );
+    this.emitter.emit("info", orderResults);
 
     return orderResults;
   };

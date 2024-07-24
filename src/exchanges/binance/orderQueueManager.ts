@@ -125,6 +125,7 @@ class OrderQueueManager {
           orderResults.forEach((orderResult) =>
             this.resultsCollector.push(orderResult)
           );
+          this.emitter.emit("resultsCollector", this.resultsCollector); // Emit all order results
           this.emitter.emit("batchResolved", orderResults); // Emit successful order IDs
         })
         .catch((error) => {
