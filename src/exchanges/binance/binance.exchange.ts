@@ -837,18 +837,20 @@ export class BinanceExchange extends BaseExchange {
     }
 
     const quantity = opts.reduceOnly ? finalAmount : finalAmount / avgPrice;
+    this.emitter.emit("info", `Split order quantity: ${quantity}`);
     const totalWeight = calculateWeights({
       fromScale: opts.fromScale,
       toScale: opts.toScale,
       orders: opts.orders,
     });
     const lowestSize = (opts.fromScale / totalWeight) * quantity;
+    this.emitter.emit("info", `Split order lowest size: ${lowestSize}`);
 
     if (
       (!opts.reduceOnly && lowestSize < minSize) ||
-      lowestSize * fromPrice < minNotional
+      (!opts.reduceOnly && lowestSize * fromPrice < minNotional)
     ) {
-      if (opts.autoReAdjust) {
+      if (opts.autoReAdjust === true) {
         const validOrdersAmount = calcValidOrdersCount({
           fromScale: opts.fromScale,
           toScale: opts.toScale,
