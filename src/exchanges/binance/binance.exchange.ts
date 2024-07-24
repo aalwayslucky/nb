@@ -698,20 +698,23 @@ export class BinanceExchange extends BaseExchange {
     await this.orderQueueManager.enqueueOrders(validOrders);
     this.emitter.emit("info", "Waiting for split orders to be processed");
 
-    while (this.orderQueueManager.isProcessing()) {
+    while (
+      this.orderQueueManager.isProcessing() ||
+      this.orderQueueManager.isWaitingForResponse()
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     const successfulOrders = this.orderQueueManager.getResults();
     const BinanceErrors = this.orderQueueManager.getResultsCollected();
 
-    const orderReults: SplitOrderResult = {
+    const orderResults: SplitOrderResult = {
       successfulOrders,
       NimbusErrors,
       BinanceErrors,
     };
 
-    return orderReults;
+    return orderResults;
   };
 
   private formatCreateSplitOrders = (

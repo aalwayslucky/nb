@@ -6,6 +6,7 @@ class OrderQueueManager {
   private queue: any[] = [];
   private mutex = new Mutex();
   private processing = false;
+  private waitingForResponse = false; // New flag to track waiting for responses
   private results: string[] = [];
   private resultsCollector: OrderResult[] = [];
   private orderTimestamps10s: number[] = []; // Array to store the timestamps of each order in the last 10 seconds
@@ -31,6 +32,7 @@ class OrderQueueManager {
       release();
     }
   };
+
   destroyQueue = async () => {
     const release = await this.mutex.acquire();
     try {
@@ -43,8 +45,13 @@ class OrderQueueManager {
       release();
     }
   };
+
   isProcessing() {
     return this.processing;
+  }
+
+  isWaitingForResponse() {
+    return this.waitingForResponse; // New method to check if waiting for responses
   }
 
   getResults() {
@@ -52,6 +59,7 @@ class OrderQueueManager {
     this.results = [];
     return resultsCopy;
   }
+
   getResultsCollected() {
     const resultsCollectorCopy = [...this.resultsCollector];
     this.resultsCollector = [];
@@ -115,6 +123,10 @@ class OrderQueueManager {
         this.orderTimestamps10s.push(now);
         this.orderTimestamps60s.push(now);
       }
+
+      this.waitingForResponse = true; // Set flag to true before sending the batch
+      this.emitter.emit("waitingForResponse", this.waitingForResponse);
+
       this.placeOrderBatchFast(batch)
         .then((orderResults) => {
           const successfulOrderIds = orderResults
@@ -130,6 +142,10 @@ class OrderQueueManager {
         })
         .catch((error) => {
           this.emitter.emit("error", "An unexpected error occurred:", error);
+        })
+        .finally(() => {
+          this.waitingForResponse = false; // Reset flag after receiving responses
+          this.emitter.emit("waitingForResponse", this.waitingForResponse);
         });
     }
   }
