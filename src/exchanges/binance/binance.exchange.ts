@@ -21,6 +21,7 @@ import type {
   PayloadOrder,
   PlaceOrderOpts,
   Position,
+  SingleOrderError,
   SplidOrderOpts,
   SplitOrderError,
   SplitOrderResult,
@@ -716,7 +717,7 @@ export class BinanceExchange extends BaseExchange {
 
   private formatCreateSplitOrders = (
     opts: SplidOrderOpts
-  ): PayloadOrder[] | { error: { symbol: string; message: string } } => {
+  ): PayloadOrder[] | { error: SplitOrderError } => {
     const orders: PayloadOrder[] = [];
     const market = this.store.markets.find(
       ({ symbol }: Market) => symbol === opts.symbol
@@ -733,6 +734,7 @@ export class BinanceExchange extends BaseExchange {
         error: {
           symbol: opts.symbol,
           message: `Market ${opts.symbol} not found`,
+          code: "MARKET_NOT_FOUND",
         },
       };
     }
@@ -741,6 +743,7 @@ export class BinanceExchange extends BaseExchange {
         error: {
           symbol: opts.symbol,
           message: `Ticker ${opts.symbol} not found`,
+          code: "TICKER_NOT_FOUND",
         },
       };
     }
@@ -749,6 +752,7 @@ export class BinanceExchange extends BaseExchange {
         error: {
           symbol: opts.symbol,
           message: `Position ${opts.symbol} not found`,
+          code: "POSITION_NOT_FOUND",
         },
       };
     }
@@ -761,6 +765,7 @@ export class BinanceExchange extends BaseExchange {
           error: {
             symbol: opts.symbol,
             message: `Position ${opts.symbol} not found`,
+            code: "POSITION_NOT_FOUND",
           },
         };
       }
@@ -769,6 +774,7 @@ export class BinanceExchange extends BaseExchange {
           error: {
             symbol: opts.symbol,
             message: "tpPercentOfPosition is required for split orders",
+            code: "TP_PERCENT_REQUIRED",
           },
         };
       }
@@ -778,7 +784,11 @@ export class BinanceExchange extends BaseExchange {
     } else {
       if (opts.amount === undefined) {
         return {
-          error: { symbol: opts.symbol, message: "Amount is required" },
+          error: {
+            symbol: opts.symbol,
+            message: "Amount is required",
+            code: "AMOUNT_REQUIRED",
+          },
         };
       }
       side = opts.side;
@@ -795,6 +805,7 @@ export class BinanceExchange extends BaseExchange {
         error: {
           symbol: opts.symbol,
           message: "Side is required for split orders",
+          code: "SIDE_REQUIRED",
         },
       };
     }
@@ -830,7 +841,13 @@ export class BinanceExchange extends BaseExchange {
     }
 
     if (!fromPrice || !toPrice) {
-      return { error: { symbol: opts.symbol, message: "Invalid price" } };
+      return {
+        error: {
+          symbol: opts.symbol,
+          message: "Invalid price",
+          code: "INVALID_PRICE",
+        },
+      };
     }
     this.emitter.emit("info", `Split order from ${fromPrice} to ${toPrice}`);
 
@@ -838,7 +855,13 @@ export class BinanceExchange extends BaseExchange {
 
     const finalAmount = amount !== null ? amount : opts.amount;
     if (finalAmount === undefined) {
-      return { error: { symbol: opts.symbol, message: "Amount is required" } };
+      return {
+        error: {
+          symbol: opts.symbol,
+          message: "Amount is required",
+          code: "AMOUNT_REQUIRED",
+        },
+      };
     }
 
     if (avgPrice <= 0) {
@@ -875,6 +898,7 @@ export class BinanceExchange extends BaseExchange {
             error: {
               symbol: opts.symbol,
               message: "Scale too extreme to split orders",
+              code: "SCALE_EXTREME",
             },
           };
         }
@@ -892,11 +916,18 @@ export class BinanceExchange extends BaseExchange {
             error: {
               symbol: opts.symbol,
               message: "Scale too extreme to split orders",
+              code: "SCALE_EXTREME",
             },
           };
         }
       } else {
-        return { error: { symbol: opts.symbol, message: "Scale too extreme" } };
+        return {
+          error: {
+            symbol: opts.symbol,
+            message: "Scale too extreme",
+            code: "SCALE_EXTREME",
+          },
+        };
       }
     }
 

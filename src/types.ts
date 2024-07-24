@@ -314,6 +314,7 @@ export type MutableBalance = {
 export type SplitOrderError = {
   symbol: string;
   message: string;
+  code: string;
 };
 
 export type SplitOrderResult = {
