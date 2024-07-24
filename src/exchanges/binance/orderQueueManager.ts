@@ -121,12 +121,12 @@ class OrderQueueManager {
             .filter((orderResult) => orderResult.error === null)
             .map((orderResult) => orderResult.orderId);
           this.results.push(...successfulOrderIds);
-
-          orderResults.forEach((orderResult) =>
+          const errorsResults = orderResults.filter(
+            (orderResult) => orderResult.error !== null
+          );
+          errorsResults.forEach((orderResult) =>
             this.resultsCollector.push(orderResult)
           );
-          this.emitter.emit("resultsCollector", this.resultsCollector); // Emit all order results
-          this.emitter.emit("batchResolved", orderResults); // Emit successful order IDs
         })
         .catch((error) => {
           this.emitter.emit("error", "An unexpected error occurred:", error);
