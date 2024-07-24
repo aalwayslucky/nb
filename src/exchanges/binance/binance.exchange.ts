@@ -831,8 +831,12 @@ export class BinanceExchange extends BaseExchange {
     if (finalAmount === undefined) {
       return { error: { symbol: opts.symbol, message: "Amount is required" } };
     }
-    const quantity = finalAmount / avgPrice;
 
+    if (avgPrice <= 0) {
+      throw new Error("avgPrice must be greater than 0");
+    }
+
+    const quantity = opts.reduceOnly ? finalAmount : finalAmount / avgPrice;
     const totalWeight = calculateWeights({
       fromScale: opts.fromScale,
       toScale: opts.toScale,
