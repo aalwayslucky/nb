@@ -115,7 +115,7 @@ class OrderQueueManager {
         this.orderTimestamps10s.push(now);
         this.orderTimestamps60s.push(now);
       }
-      await this.placeOrderBatchFast(batch)
+      this.placeOrderBatchFast(batch)
         .then((orderResults) => {
           const successfulOrderIds = orderResults
             .filter((orderResult) => orderResult.error === null)
