@@ -357,7 +357,7 @@ export class BinanceExchange extends BaseExchange {
           let usdValue = walletBalance;
 
           // Calculate USD value for non-stablecoin assets
-          if (!["USDC", "USDT", "FDUSD"].includes(asset)) {
+          if (!["USDC", "USDT", "FDUSD", "BNFCR"].includes(asset)) {
             const symbol = asset + "USDT";
             const ticker = this.store.tickers.find((t) => t.symbol === symbol);
             if (!ticker) {
