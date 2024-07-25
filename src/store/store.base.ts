@@ -77,7 +77,7 @@ export class DefaultStore implements Store {
     const newAssets = balance.assets.map((asset) => {
       let usdValue = asset.walletBalance;
 
-      if (!["USDC", "USDT", "FDUSD"].includes(asset.symbol)) {
+      if (!["USDC", "USDT", "FDUSD", "BNCFR"].includes(asset.symbol)) {
         const symbol = asset.symbol + "USDT";
         const ticker = this.state.tickers.find((t) => t.symbol === symbol);
         if (!ticker) {
