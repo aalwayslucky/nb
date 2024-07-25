@@ -125,6 +125,7 @@ export class DefaultStore implements Store {
     });
 
     this.notify();
+    this.notifyOrders();
   };
 
   removeOrder = (order: Pick<Order, "id">) => {
@@ -133,6 +134,7 @@ export class DefaultStore implements Store {
     if (idx > -1) {
       this.state.orders.splice(idx, 1);
       this.notify();
+      this.notifyOrders();
     }
   };
 
@@ -142,12 +144,14 @@ export class DefaultStore implements Store {
     if (idx > -1) {
       this.updateInArray("orders", idx, changes);
       this.notify();
+      this.notifyOrders();
     }
   };
 
   addOrder = (order: Order) => {
     this.state.orders.push(order);
     this.notify();
+    this.notifyOrders();
   };
 
   addOrUpdateOrder = (order: Order) => {
@@ -158,6 +162,7 @@ export class DefaultStore implements Store {
       this.state.orders.push(order);
     }
     this.notify();
+    this.notifyOrders();
   };
 
   addOrUpdateOrders = (orders: Order[]) => {
@@ -170,6 +175,7 @@ export class DefaultStore implements Store {
       }
     });
     this.notify();
+    this.notifyOrders();
   };
 
   removePosition = (position: Pick<Position, "side" | "symbol">) => {
@@ -267,6 +273,11 @@ export class DefaultStore implements Store {
   private notify = () => {
     if (this.listeners.size > 0) {
       this.listeners.forEach((cb) => cb(this.state));
+    }
+  };
+  private notifyOrders = () => {
+    if (this.orderListeners.size > 0) {
+      this.orderListeners.forEach((cb) => cb(this.state.orders));
     }
   };
 }
