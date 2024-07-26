@@ -226,8 +226,9 @@ export class BinanceExchange extends BaseExchange {
       const markets: Market[] = filteredSymbols
         .filter(
           (m) =>
-            v(m, "contractType") === "PERPETUAL" &&
-            v(m, "marginAsset") === "USDT"
+            (v(m, "contractType") === "PERPETUAL" &&
+              v(m, "marginAsset") === "USDT") ||
+            "USDC"
         )
         .map((m) => {
           const p = m.filters.find(
