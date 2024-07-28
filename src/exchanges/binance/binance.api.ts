@@ -1,28 +1,40 @@
-import axios from 'axios';
-import retry, { isNetworkError } from 'axios-retry';
-import createHmac from 'create-hmac';
-import omit from 'lodash/omit';
-import qs from 'qs';
+import axios from "axios";
+import retry, { isNetworkError } from "axios-retry";
+import createHmac from "create-hmac";
+import omit from "lodash/omit";
+import qs from "qs";
 
-import type { ExchangeOptions } from '../../types';
-import { virtualClock } from '../../utils/virtual-clock';
+import type { ExchangeOptions } from "../../types";
+import { virtualClock } from "../../utils/virtual-clock";
 
 import {
   BASE_URL,
   ENDPOINTS,
   PUBLIC_ENDPOINTS,
   RECV_WINDOW,
-} from './binance.types';
+} from "./binance.types";
+
+const getBaseURL = (options: ExchangeOptions) => {
+  if (options.extra?.binance?.http) {
+    return options.testnet
+      ? options.extra.binance.http.testnet
+      : options.extra.binance.http.livenet;
+  }
+
+  return options.testnet ? BASE_URL.testnet : BASE_URL.livenet;
+};
 
 export const createAPI = (options: ExchangeOptions) => {
+  const baseURL = getBaseURL(options);
+
   const xhr = axios.create({
-    baseURL: BASE_URL[options.testnet ? 'testnet' : 'livenet'],
+    baseURL: baseURL,
     paramsSerializer: {
-      serialize: (params) => qs.stringify(params, { arrayFormat: 'repeat' }),
+      serialize: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
     },
     headers: {
-      'X-MBX-APIKEY': options.key,
-      'Content-Type': 'application/json, chartset=utf-8',
+      "X-MBX-APIKEY": options.key,
+      "Content-Type": "application/json, chartset=utf-8",
     },
   });
 
@@ -48,10 +60,10 @@ export const createAPI = (options: ExchangeOptions) => {
     data.timestamp = timestamp;
     data.recvWindow = RECV_WINDOW;
 
-    const asString = qs.stringify(data, { arrayFormat: 'repeat' });
-    const signature = createHmac('sha256', options.secret)
+    const asString = qs.stringify(data, { arrayFormat: "repeat" });
+    const signature = createHmac("sha256", options.secret)
       .update(asString)
-      .digest('hex');
+      .digest("hex");
 
     data.signature = signature;
     nextConfig.params = data;
@@ -59,7 +71,7 @@ export const createAPI = (options: ExchangeOptions) => {
     // use cors-anywhere to bypass CORS
     // Binance doesn't allow CORS on their testnet API
     if (
-      nextConfig.method !== 'get' &&
+      nextConfig.method !== "get" &&
       options.testnet &&
       options.corsAnywhere
     ) {
@@ -71,7 +83,7 @@ export const createAPI = (options: ExchangeOptions) => {
 
     // remove data from POST/PUT/DELETE requests
     // Binance API takes data as query params
-    return omit(nextConfig, 'data');
+    return omit(nextConfig, "data");
   });
 
   return xhr;
