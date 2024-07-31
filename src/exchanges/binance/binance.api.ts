@@ -75,13 +75,6 @@ export const createAPI = (options: ExchangeOptions) => {
     nextConfig.params = sortedData;
     // use cors-anywhere to bypass CORS
     // Binance doesn't allow CORS on their testnet API
-    if (
-      nextConfig.method !== "get" &&
-      options.testnet &&
-      options.corsAnywhere
-    ) {
-      nextConfig.baseURL = `${options.corsAnywhere}/${config.baseURL}`;
-    }
 
     // Add timeout to signed requests (default is 5s)
     nextConfig.timeout = options?.extra?.recvWindow ?? RECV_WINDOW;

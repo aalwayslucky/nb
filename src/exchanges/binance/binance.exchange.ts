@@ -62,7 +62,6 @@ export class BinanceExchange extends BaseExchange {
 
   xhr: Axios;
   unlimitedXHR: Axios;
-  proxyXHR: Axios;
 
   publicWebsocket: BinancePublicWebsocket;
   privateWebsocket: BinancePrivateWebsocket;
@@ -73,20 +72,6 @@ export class BinanceExchange extends BaseExchange {
 
     this.xhr = rateLimit(createAPI(opts), { maxRPS: 3 });
     this.unlimitedXHR = createAPI(opts);
-    this.proxyXHR = createAPI({
-      ...opts,
-      extra: {
-        ...opts.extra,
-        binance: {
-          ...opts.extra?.binance,
-          http: {
-            livenet:
-              "https://1mv19deeq8.execute-api.ap-northeast-1.amazonaws.com/nimbus",
-            testnet: "https://testnet.binance.vision", // You should provide a string URL for testnet
-          },
-        },
-      },
-    });
 
     this.orderQueueManager = new OrderQueueManager(
       this.emitter,
@@ -639,7 +624,7 @@ export class BinanceExchange extends BaseExchange {
 
   cancelSymbolOrders = async (symbol: string) => {
     try {
-      await this.proxyXHR.delete(ENDPOINTS.CANCEL_SYMBOL_ORDERS, {
+      await this.unlimitedXHR.delete(ENDPOINTS.CANCEL_SYMBOL_ORDERS, {
         params: { symbol },
       });
 
@@ -1153,7 +1138,7 @@ export class BinanceExchange extends BaseExchange {
     for (const lot of lots) {
       if (lot.length === 1) {
         try {
-          await this.proxyXHR.post(ENDPOINTS.ORDER, lot[0]);
+          await this.unlimitedXHR.post(ENDPOINTS.ORDER, lot[0]);
           orderIds.push(lot[0].newClientOrderId);
         } catch (err: any) {
           this.emitter.emit("error", err?.response?.data?.msg || err?.message);
@@ -1161,7 +1146,7 @@ export class BinanceExchange extends BaseExchange {
       }
 
       if (lot.length > 1) {
-        const { data } = await this.proxyXHR.post(ENDPOINTS.BATCH_ORDERS, {
+        const { data } = await this.unlimitedXHR.post(ENDPOINTS.BATCH_ORDERS, {
           batchOrders: JSON.stringify(lot),
         });
 
@@ -1187,7 +1172,7 @@ export class BinanceExchange extends BaseExchange {
 
     const promises = lots.map(async (lot) => {
       try {
-        const { data } = await this.proxyXHR.post(ENDPOINTS.BATCH_ORDERS, {
+        const { data } = await this.unlimitedXHR.post(ENDPOINTS.BATCH_ORDERS, {
           batchOrders: JSON.stringify(lot),
         });
         await this.sleep(5);
