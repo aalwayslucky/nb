@@ -60,7 +60,7 @@ export const createAPI = (options: ExchangeOptions) => {
     data.timestamp = timestamp;
     data.recvWindow = RECV_WINDOW;
 
-    // Remove signature if it exists (in case it was added before)
+    // Remove signature if it exists
     delete data.signature;
 
     const asString = qs.stringify(data, { arrayFormat: "repeat" });
@@ -68,12 +68,11 @@ export const createAPI = (options: ExchangeOptions) => {
       .update(asString)
       .digest("hex");
 
-    // Set params without signature
-    nextConfig.params = data;
-
-    // Append signature to the URL
-    const separator = nextConfig.url?.includes("?") ? "&" : "?";
-    nextConfig.url = `${nextConfig.url}${separator}signature=${signature}`;
+    // Create a new object with signature at the end
+    nextConfig.params = {
+      ...data,
+      signature: signature,
+    };
 
     // use cors-anywhere to bypass CORS
     // Binance doesn't allow CORS on their testnet API
