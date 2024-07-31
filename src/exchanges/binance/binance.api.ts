@@ -29,9 +29,6 @@ export const createAPI = (options: ExchangeOptions) => {
 
   const xhr = axios.create({
     baseURL: baseURL,
-    paramsSerializer: {
-      serialize: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
-    },
     headers: {
       "X-MBX-APIKEY": options.key,
       "Content-Type": "application/json, chartset=utf-8",
@@ -56,17 +53,22 @@ export const createAPI = (options: ExchangeOptions) => {
     const nextConfig = { ...config };
     const timestamp = virtualClock.getCurrentTime().valueOf();
 
-    const data = config.data || config.params || {};
+    const data = { ...config.params, ...config.data };
     data.timestamp = timestamp;
     data.recvWindow = RECV_WINDOW;
 
-    const asString = qs.stringify(data, { arrayFormat: "repeat" });
+    const queryString = qs.stringify(data, { arrayFormat: "repeat" });
     const signature = createHmac("sha256", options.secret)
-      .update(asString)
+      .update(queryString)
       .digest("hex");
 
-    data.signature = signature;
-    nextConfig.params = data;
+    // Construct the full URL with the signature at the end
+    const fullUrl = `${config.url}?${queryString}&signature=${signature}`;
+    nextConfig.url = fullUrl;
+
+    // Remove params and data from the config
+    delete nextConfig.params;
+    delete nextConfig.data;
 
     // use cors-anywhere to bypass CORS
     // Binance doesn't allow CORS on their testnet API
@@ -81,9 +83,7 @@ export const createAPI = (options: ExchangeOptions) => {
     // Add timeout to signed requests (default is 5s)
     nextConfig.timeout = options?.extra?.recvWindow ?? RECV_WINDOW;
 
-    // remove data from POST/PUT/DELETE requests
-    // Binance API takes data as query params
-    return omit(nextConfig, "data");
+    return nextConfig;
   });
 
   return xhr;
