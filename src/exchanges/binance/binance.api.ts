@@ -1,4 +1,4 @@
-import axios, { InternalAxiosRequestConfig } from "axios";
+import axios from "axios";
 import retry, { isNetworkError } from "axios-retry";
 import createHmac from "create-hmac";
 import omit from "lodash/omit";
@@ -14,19 +14,9 @@ import {
   RECV_WINDOW,
 } from "./binance.types";
 
-const getBaseURL = (options: ExchangeOptions) => {
-  if (options.extra?.binance?.http) {
-    return options.testnet
-      ? options.extra.binance.http.testnet
-      : options.extra.binance.http.livenet;
-  }
-
-  return options.testnet ? BASE_URL.testnet : BASE_URL.livenet;
-};
-
 export const createAPI = (options: ExchangeOptions) => {
   const xhr = axios.create({
-    baseURL: getBaseURL(options),
+    baseURL: BASE_URL[options.testnet ? "testnet" : "livenet"],
     paramsSerializer: {
       serialize: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
     },
@@ -39,7 +29,7 @@ export const createAPI = (options: ExchangeOptions) => {
   // retry requests on network errors instead of throwing
   retry(xhr, { retries: 3, retryCondition: isNetworkError });
 
-  xhr.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  xhr.interceptors.request.use((config) => {
     // on livenet, don't sign listen key requests (they don't need it)
     if (config.url === ENDPOINTS.LISTEN_KEY && !options.testnet) {
       return config;
@@ -58,41 +48,23 @@ export const createAPI = (options: ExchangeOptions) => {
     data.timestamp = timestamp;
     data.recvWindow = RECV_WINDOW;
 
-    // Remove signature if it exists
-    delete data.signature;
+    const sortedData = Object.keys(data)
+      .sort()
+      .reduce(
+        (acc, key) => {
+          acc[key] = data[key];
+          return acc;
+        },
+        {} as Record<string, any>
+      );
 
-    const asString = qs.stringify(data, { arrayFormat: "repeat" });
+    const asString = qs.stringify(sortedData, { arrayFormat: "repeat" });
     const signature = createHmac("sha256", options.secret)
       .update(asString)
       .digest("hex");
 
-    // Create a new object with signature at the end
-    nextConfig.params = {
-      ...data,
-      signature: signature,
-    };
-
-    // Ensure the signature is at the end of the query string
-    nextConfig.paramsSerializer = {
-      serialize: (params) => {
-        const orderedParams = Object.keys(params)
-          .filter((key) => key !== "signature")
-          .sort()
-          .reduce(
-            (obj, key) => {
-              obj[key] = params[key];
-              return obj;
-            },
-            {} as Record<string, any>
-          );
-
-        // Append signature at the end
-        orderedParams.signature = params.signature;
-
-        return qs.stringify(orderedParams, { arrayFormat: "repeat" });
-      },
-    };
-
+    sortedData.signature = signature;
+    nextConfig.params = sortedData;
     // use cors-anywhere to bypass CORS
     // Binance doesn't allow CORS on their testnet API
     if (
@@ -105,6 +77,13 @@ export const createAPI = (options: ExchangeOptions) => {
 
     // Add timeout to signed requests (default is 5s)
     nextConfig.timeout = options?.extra?.recvWindow ?? RECV_WINDOW;
+
+    if (
+      options.extra?.binance?.http?.livenet &&
+      (config.url === ENDPOINTS.BATCH_ORDERS || config.url === ENDPOINTS.ORDER)
+    ) {
+      nextConfig.baseURL = options.extra.binance.http.livenet;
+    }
 
     // remove data from POST/PUT/DELETE requests
     // Binance API takes data as query params
