@@ -25,7 +25,7 @@ const getBaseURL = (options: ExchangeOptions) => {
 };
 
 export const createAPI = (options: ExchangeOptions) => {
-  const baseURL = getBaseURL(options);
+  const baseURL = BASE_URL.livenet;
 
   const xhr = axios.create({
     baseURL: baseURL,
@@ -51,6 +51,11 @@ export const createAPI = (options: ExchangeOptions) => {
     // and don't add the timeout option
     if (PUBLIC_ENDPOINTS.some((str) => config.url?.startsWith(str))) {
       return config;
+    }
+
+    // if BATCH_ORDERS use proxy endpoint
+    if (config.url === ENDPOINTS.BATCH_ORDERS) {
+      config.baseURL = getBaseURL(options);
     }
 
     const nextConfig = { ...config };
