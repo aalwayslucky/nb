@@ -13,7 +13,15 @@ import {
   PUBLIC_ENDPOINTS,
   RECV_WINDOW,
 } from "./binance.types";
+const getBaseURL = (options: ExchangeOptions) => {
+  if (options.extra?.binance?.http) {
+    return options.testnet
+      ? options.extra.binance.http.testnet
+      : options.extra.binance.http.livenet;
+  }
 
+  return options.testnet ? BASE_URL.testnet : BASE_URL.livenet;
+};
 export const createAPI = (options: ExchangeOptions) => {
   const xhr = axios.create({
     baseURL: BASE_URL[options.testnet ? "testnet" : "livenet"],
@@ -79,10 +87,10 @@ export const createAPI = (options: ExchangeOptions) => {
     nextConfig.timeout = options?.extra?.recvWindow ?? RECV_WINDOW;
 
     if (
-      options.extra?.binance?.http?.livenet &&
-      (config.url === ENDPOINTS.BATCH_ORDERS || config.url === ENDPOINTS.ORDER)
+      config.url === ENDPOINTS.BATCH_ORDERS ||
+      config.url === ENDPOINTS.ORDER
     ) {
-      nextConfig.baseURL = options.extra.binance.http.livenet;
+      nextConfig.baseURL = getBaseURL(options);
     }
 
     // remove data from POST/PUT/DELETE requests
