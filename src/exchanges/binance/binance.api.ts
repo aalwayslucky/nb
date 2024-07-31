@@ -13,7 +13,6 @@ import {
   PUBLIC_ENDPOINTS,
   RECV_WINDOW,
 } from "./binance.types";
-
 const getBaseURL = (options: ExchangeOptions) => {
   if (options.extra?.binance?.http) {
     return options.testnet
@@ -23,12 +22,9 @@ const getBaseURL = (options: ExchangeOptions) => {
 
   return options.testnet ? BASE_URL.testnet : BASE_URL.livenet;
 };
-
 export const createAPI = (options: ExchangeOptions) => {
-  const baseURL = BASE_URL.livenet;
-
   const xhr = axios.create({
-    baseURL: baseURL,
+    baseURL: BASE_URL[options.testnet ? "testnet" : "livenet"],
     paramsSerializer: {
       serialize: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
     },
@@ -53,11 +49,10 @@ export const createAPI = (options: ExchangeOptions) => {
       return config;
     }
 
-    // if BATCH_ORDERS use proxy endpoint
+    // if BATCH_ORDERS use proxy
     if (config.url === ENDPOINTS.BATCH_ORDERS) {
       config.baseURL = getBaseURL(options);
     }
-
     const nextConfig = { ...config };
     const timestamp = virtualClock.getCurrentTime().valueOf();
 
@@ -65,19 +60,13 @@ export const createAPI = (options: ExchangeOptions) => {
     data.timestamp = timestamp;
     data.recvWindow = RECV_WINDOW;
 
-    // Remove signature if it exists
-    delete data.signature;
-
     const asString = qs.stringify(data, { arrayFormat: "repeat" });
     const signature = createHmac("sha256", options.secret)
       .update(asString)
       .digest("hex");
 
-    // Create a new object with signature at the end
-    nextConfig.params = {
-      ...data,
-      signature: signature,
-    };
+    data.signature = signature;
+    nextConfig.params = data;
 
     // use cors-anywhere to bypass CORS
     // Binance doesn't allow CORS on their testnet API
