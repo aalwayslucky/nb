@@ -29,6 +29,9 @@ export const createAPI = (options: ExchangeOptions) => {
 
   const xhr = axios.create({
     baseURL: baseURL,
+    paramsSerializer: {
+      serialize: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
+    },
     headers: {
       "X-MBX-APIKEY": options.key,
       "Content-Type": "application/json, chartset=utf-8",
@@ -53,22 +56,24 @@ export const createAPI = (options: ExchangeOptions) => {
     const nextConfig = { ...config };
     const timestamp = virtualClock.getCurrentTime().valueOf();
 
-    const data = { ...config.params, ...config.data };
+    const data = config.data || config.params || {};
     data.timestamp = timestamp;
     data.recvWindow = RECV_WINDOW;
 
-    const queryString = qs.stringify(data, { arrayFormat: "repeat" });
+    // Remove signature if it exists (in case it was added before)
+    delete data.signature;
+
+    const asString = qs.stringify(data, { arrayFormat: "repeat" });
     const signature = createHmac("sha256", options.secret)
-      .update(queryString)
+      .update(asString)
       .digest("hex");
 
-    // Construct the full URL with the signature at the end
-    const fullUrl = `${config.url}?${queryString}&signature=${signature}`;
-    nextConfig.url = fullUrl;
+    // Set params without signature
+    nextConfig.params = data;
 
-    // Remove params and data from the config
-    delete nextConfig.params;
-    delete nextConfig.data;
+    // Append signature to the URL
+    const separator = nextConfig.url?.includes("?") ? "&" : "?";
+    nextConfig.url = `${nextConfig.url}${separator}signature=${signature}`;
 
     // use cors-anywhere to bypass CORS
     // Binance doesn't allow CORS on their testnet API
@@ -83,7 +88,9 @@ export const createAPI = (options: ExchangeOptions) => {
     // Add timeout to signed requests (default is 5s)
     nextConfig.timeout = options?.extra?.recvWindow ?? RECV_WINDOW;
 
-    return nextConfig;
+    // remove data from POST/PUT/DELETE requests
+    // Binance API takes data as query params
+    return omit(nextConfig, "data");
   });
 
   return xhr;
