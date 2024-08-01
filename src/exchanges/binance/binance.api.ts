@@ -24,14 +24,7 @@ const getBaseURL = (options: ExchangeOptions) => {
 };
 export const createAPI = (options: ExchangeOptions) => {
   const xhr = axios.create({
-    baseURL: BASE_URL[options.testnet ? "testnet" : "livenet"],
-    paramsSerializer: {
-      serialize: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
-    },
-    headers: {
-      "X-MBX-APIKEY": options.key,
-      "Content-Type": "application/json, chartset=utf-8",
-    },
+    baseURL: getBaseURL(options),
   });
 
   // retry requests on network errors instead of throwing
@@ -50,12 +43,17 @@ export const createAPI = (options: ExchangeOptions) => {
     }
 
     const nextConfig = { ...config };
-    const timestamp = virtualClock.getCurrentTime().valueOf();
 
+    // Set default headers
+    nextConfig.headers = nextConfig.headers || {};
+    nextConfig.headers["X-MBX-APIKEY"] = options.key;
+    nextConfig.headers["Content-Type"] = "application/json, chartset=utf-8";
+    const timestamp = virtualClock.getCurrentTime().valueOf();
     const data = config.data || config.params || {};
     data.timestamp = timestamp;
     data.recvWindow = RECV_WINDOW;
 
+    // Sort parameters alphabetically
     const sortedData = Object.keys(data)
       .sort()
       .reduce(
@@ -66,29 +64,35 @@ export const createAPI = (options: ExchangeOptions) => {
         {} as Record<string, any>
       );
 
-    const asString = qs.stringify(sortedData, { arrayFormat: "repeat" });
-    const signature = createHmac("sha256", options.secret)
-      .update(asString)
-      .digest("hex");
+    // Check if it's a batch order
+    if (config.url === ENDPOINTS.BATCH_ORDERS) {
+      // URL encode only the batchOrders parameter
+      const paramString = `batchOrders=${encodeURIComponent(
+        data.batchOrders
+      )}&recvWindow=${RECV_WINDOW}&timestamp=${timestamp}`;
+      // Generate signature
+      const signature = createHmac("sha256", options.secret)
+        .update(paramString)
+        .digest("hex");
 
-    sortedData.signature = signature;
-    nextConfig.params = sortedData;
-    // use cors-anywhere to bypass CORS
-    // Binance doesn't allow CORS on their testnet API
+      // Set up the request
+      nextConfig.headers["Content-Type"] = "application/x-www-form-urlencoded";
+      nextConfig.data = `${paramString}&signature=${signature}`;
+      delete nextConfig.headers["accept-encoding"];
+      nextConfig.headers["Accept"] = "*/*";
+      return omit(nextConfig, "params");
+    } else {
+      // For non-batch orders, use the previous approach
+      const asString = qs.stringify(sortedData, { arrayFormat: "repeat" });
+      const signature = createHmac("sha256", options.secret)
+        .update(asString)
+        .digest("hex");
 
-    // Add timeout to signed requests (default is 5s)
-    nextConfig.timeout = options?.extra?.recvWindow ?? RECV_WINDOW;
-
-    if (
-      config.url === ENDPOINTS.BATCH_ORDERS ||
-      config.url === ENDPOINTS.ORDER
-    ) {
-      nextConfig.baseURL = getBaseURL(options);
+      sortedData.signature = signature;
+      nextConfig.params = sortedData;
+      nextConfig.timeout = options?.extra?.recvWindow ?? RECV_WINDOW;
+      return omit(nextConfig, "data");
     }
-
-    // remove data from POST/PUT/DELETE requests
-    // Binance API takes data as query params
-    return omit(nextConfig, "data");
   });
 
   return xhr;
