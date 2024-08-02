@@ -25,6 +25,9 @@ const getBaseURL = (options: ExchangeOptions) => {
 export const createAPI = (options: ExchangeOptions) => {
   const xhr = axios.create({
     baseURL: getBaseURL(options),
+    headers: {
+      "X-My-X-Forwarded-For": "127.0.0.1",
+    },
   });
 
   // retry requests on network errors instead of throwing
@@ -35,6 +38,7 @@ export const createAPI = (options: ExchangeOptions) => {
     if (config.url === ENDPOINTS.LISTEN_KEY && !options.testnet) {
       const nextConfig = { ...config };
       nextConfig.headers["Content-Type"] = "application/json, chartset=utf-8";
+      nextConfig.baseURL = BASE_URL.livenet;
       return omit(nextConfig, "data");
     }
 
