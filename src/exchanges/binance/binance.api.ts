@@ -33,7 +33,9 @@ export const createAPI = (options: ExchangeOptions) => {
   xhr.interceptors.request.use((config) => {
     // on livenet, don't sign listen key requests (they don't need it)
     if (config.url === ENDPOINTS.LISTEN_KEY && !options.testnet) {
-      return config;
+      const nextConfig = { ...config };
+      nextConfig.headers["Content-Type"] = "application/json, chartset=utf-8";
+      return omit(nextConfig, "data");
     }
 
     // don't sign requests if no API key is provided
