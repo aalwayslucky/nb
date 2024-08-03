@@ -13,6 +13,10 @@ import {
   PUBLIC_ENDPOINTS,
   RECV_WINDOW,
 } from "./binance.types";
+
+function getRandomLocalhostIP() {
+  return `127.0.0.${Math.floor(Math.random() * 256)}`;
+}
 const getBaseURL = (options: ExchangeOptions) => {
   if (options.extra?.binance?.http) {
     return options.testnet
@@ -26,7 +30,7 @@ export const createAPI = (options: ExchangeOptions) => {
   const xhr = axios.create({
     baseURL: getBaseURL(options),
     headers: {
-      "X-My-X-Forwarded-For": "127.0.0.1",
+      "X-My-X-Forwarded-For": getRandomLocalhostIP(),
     },
   });
 
@@ -52,6 +56,8 @@ export const createAPI = (options: ExchangeOptions) => {
 
     // Set default headers
     nextConfig.headers = nextConfig.headers || {};
+    nextConfig.headers["X-My-X-Forwarded-For"] = getRandomLocalhostIP();
+
     nextConfig.headers["X-MBX-APIKEY"] = options.key;
     nextConfig.headers["Content-Type"] = "application/json, chartset=utf-8";
     const timestamp = virtualClock.getCurrentTime().valueOf();
