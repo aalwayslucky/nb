@@ -216,6 +216,7 @@ export class BinanceExchange extends BaseExchange {
       } = response1;
 
       // Check and update store with response headers
+      this.emitter.emit("info", response1.headers);
       const usedWeight1 =
         response1.headers["x-mbx-used-weight-1m"] ||
         response1.headers["X-MBX-USED-WEIGHT-1M"] ||
