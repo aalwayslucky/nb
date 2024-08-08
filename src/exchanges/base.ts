@@ -36,7 +36,7 @@ export interface Exchange {
   getAccount: () => Promise<ExchangeAccount>;
   validateAccount: () => Promise<string>;
   start: () => Promise<void>;
-  refreshOrdersAndPositions: () => Promise<void>;
+  refreshOrdersAndPositions: () => void;
   nuke: (tries?: number) => Promise<void>;
   nukeSymbol: (symbol: string[], tries?: number) => Promise<void>;
   changePositionMode: (hedged: boolean) => Promise<void>;
@@ -109,9 +109,8 @@ export class BaseExchange implements Exchange {
   start = async () => {
     await Promise.reject(new Error("Not implemented"));
   };
-  refreshOrdersAndPositions = async () => {
-    await Promise.reject(new Error("Not implemented"));
-  };
+
+  refreshOrdersAndPositions = async () => {};
 
   destroyQueue() {}
   setLeverage = async (_symbol: string, _leverage: number) => {
