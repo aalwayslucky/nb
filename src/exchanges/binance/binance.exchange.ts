@@ -211,12 +211,13 @@ export class BinanceExchange extends BaseExchange {
       const response1 = await this.xhr.get<{
         symbols: Array<Record<string, any>>;
       }>(ENDPOINTS.MARKETS);
+
       const {
         data: { symbols },
       } = response1;
 
       // Check and update store with response headers
-      this.emitter.emit("info", response1);
+      this.emitter.emit("info", response1.headers);
       // Second API call
       const response2 = await this.xhr.get<Array<Record<string, any>>>(
         ENDPOINTS.LEVERAGE_BRACKET
