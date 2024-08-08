@@ -216,15 +216,7 @@ export class BinanceExchange extends BaseExchange {
       } = response1;
 
       // Check and update store with response headers
-      this.emitter.emit("info", response1.headers);
-      const usedWeight1 =
-        response1.headers["x-mbx-used-weight-1m"] ||
-        response1.headers["X-MBX-USED-WEIGHT-1M"] ||
-        response1.headers["X-Mbx-Used-Weight-1m"];
-      if (usedWeight1) {
-        this.store.update({ usedWeight: parseInt(usedWeight1, 10) });
-      }
-
+      this.emitter.emit("info", response1.headers["x-mbx-used-weight-1m"]);
       // Second API call
       const response2 = await this.xhr.get<Array<Record<string, any>>>(
         ENDPOINTS.LEVERAGE_BRACKET
