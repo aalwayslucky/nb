@@ -132,18 +132,6 @@ export const createAPI = (options: ExchangeOptions, store: Store) => {
       return omit(nextConfig, "data");
     }
   });
-  xhr.interceptors.response.use(
-    (response) => {
-      const usedWeight = response.headers["x-mbx-used-weight-1m"];
-      if (usedWeight) {
-        store.update({ latency: usedWeight });
-      }
-      return response;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
 
   return xhr;
 };
