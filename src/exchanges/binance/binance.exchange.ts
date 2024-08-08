@@ -596,7 +596,7 @@ export class BinanceExchange extends BaseExchange {
                 origClientOrderIdList:
                   request.origClientOrderIdList.length === 1
                     ? request.origClientOrderIdList[0]
-                    : JSON.stringify(request.origClientOrderIdList),
+                    : request.origClientOrderIdList,
               },
             }
           )
