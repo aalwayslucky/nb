@@ -13,6 +13,7 @@ import {
   PUBLIC_ENDPOINTS,
   RECV_WINDOW,
 } from "./binance.types";
+import { Store } from "../../store/store.interface";
 
 function getRandomLocalhostIP() {
   return `127.0.0.${Math.floor(Math.random() * 256)}`;
@@ -50,7 +51,7 @@ const getBaseURL = (options: ExchangeOptions) => {
 
   return options.testnet ? BASE_URL.testnet : BASE_URL.livenet;
 };
-export const createAPI = (options: ExchangeOptions) => {
+export const createAPI = (options: ExchangeOptions, store: Store) => {
   const xhr = axios.create({
     baseURL: getBaseURL(options),
     headers: {
@@ -131,6 +132,18 @@ export const createAPI = (options: ExchangeOptions) => {
       return omit(nextConfig, "data");
     }
   });
+  xhr.interceptors.response.use(
+    (response) => {
+      const usedWeight = response.headers["x-mbx-used-weight-1m"];
+      if (usedWeight) {
+        store.update({ latency: usedWeight });
+      }
+      return response;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
 
   return xhr;
 };

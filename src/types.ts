@@ -261,6 +261,7 @@ export type StoreOptions = {
 
 export type StoreData = {
   readonly latency: number;
+  readonly usedWeight: number;
   readonly balance: Balance;
   readonly markets: Market[];
   readonly tickers: Ticker[];
@@ -288,6 +289,7 @@ export type Writable<T> =
 
 export type WritableStoreData = {
   latency: number;
+  usedWeight: number;
   balance: Writable<Balance>;
   markets: Array<Writable<Market>>;
   tickers: Array<Writable<Ticker>>;

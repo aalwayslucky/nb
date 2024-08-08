@@ -30,6 +30,7 @@ export interface Store {
   updateMarket: (market: Pick<Market, "id">, changes: Partial<Market>) => void;
 
   get latency(): StoreData["latency"];
+  get usedWeight(): StoreData["usedWeight"];
   get balance(): StoreData["balance"];
   get markets(): StoreData["markets"];
   get tickers(): StoreData["tickers"];
