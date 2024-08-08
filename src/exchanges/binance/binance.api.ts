@@ -55,9 +55,6 @@ export const createAPI = (options: ExchangeOptions) => {
     baseURL: getBaseURL(options),
     headers: {
       "X-My-X-Forwarded-For": getRandomLocalhostIP(),
-      Authorization: `Bearer ${options.key}`,
-
-      "Access-Control-Allow-Headers": "Authorization",
     },
   });
 
