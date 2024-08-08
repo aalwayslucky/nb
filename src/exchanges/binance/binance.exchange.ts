@@ -1162,57 +1162,57 @@ export class BinanceExchange extends BaseExchange {
 
     return orderIds;
   };
-  private sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
+  // private sleep(ms: number) {
+  //   return new Promise((resolve) => setTimeout(resolve, ms));
+  // }
 
-  private placeOrderBatchFast = async (payloads: any[]) => {
-    const lots = chunk(payloads, 5);
-    const orderResults = [] as OrderResult[];
+  // private placeOrderBatchFast = async (payloads: any[]) => {
+  //   const lots = chunk(payloads, 5);
+  //   const orderResults = [] as OrderResult[];
 
-    const promises = lots.map(async (lot) => {
-      try {
-        const { data } = await this.unlimitedXHR.post(ENDPOINTS.BATCH_ORDERS, {
-          batchOrders: JSON.stringify(lot),
-        });
-        await this.sleep(5);
+  //   const promises = lots.map(async (lot) => {
+  //     try {
+  //       const { data } = await this.unlimitedXHR.post(ENDPOINTS.BATCH_ORDERS, {
+  //         batchOrders: JSON.stringify(lot),
+  //       });
+  //       await this.sleep(5);
 
-        data?.forEach?.((o: any, index: number) => {
-          const originalOrder = lot[index];
-          if (o.code) {
-            orderResults.push({
-              orderId: originalOrder.newClientOrderId,
-              error: o,
-              symbol: originalOrder.symbol,
-            });
-          } else {
-            orderResults.push({
-              orderId: originalOrder.newClientOrderId,
-              error: null,
-              symbol: originalOrder.symbol,
-            });
-          }
-        });
-      } catch (err: any) {
-        lot.forEach((o: any) => {
-          orderResults.push({
-            orderId: o.newClientOrderId,
-            symbol: o.symbol,
-            error: o,
-          });
-        });
-      }
-    });
+  //       data?.forEach?.((o: any, index: number) => {
+  //         const originalOrder = lot[index];
+  //         if (o.code) {
+  //           orderResults.push({
+  //             orderId: originalOrder.newClientOrderId,
+  //             error: o,
+  //             symbol: originalOrder.symbol,
+  //           });
+  //         } else {
+  //           orderResults.push({
+  //             orderId: originalOrder.newClientOrderId,
+  //             error: null,
+  //             symbol: originalOrder.symbol,
+  //           });
+  //         }
+  //       });
+  //     } catch (err: any) {
+  //       lot.forEach((o: any) => {
+  //         orderResults.push({
+  //           orderId: o.newClientOrderId,
+  //           symbol: o.symbol,
+  //           error: o,
+  //         });
+  //       });
+  //     }
+  //   });
 
-    await Promise.all(promises);
-    this.emitter.emit(
-      "info",
-      "Returning split orders results from placeorderbatchfast"
-    );
-    this.emitter.emit("info", orderResults);
+  //   await Promise.all(promises);
+  //   this.emitter.emit(
+  //     "info",
+  //     "Returning split orders results from placeorderbatchfast"
+  //   );
+  //   this.emitter.emit("info", orderResults);
 
-    return orderResults;
-  };
+  //   return orderResults;
+  // };
 
   private placeOrderFast = async (payload: any): Promise<OrderResult> => {
     try {
