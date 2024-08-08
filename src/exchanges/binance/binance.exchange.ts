@@ -72,6 +72,32 @@ export class BinanceExchange extends BaseExchange {
 
     this.xhr = rateLimit(createAPI(opts), { maxRPS: 3 });
     this.unlimitedXHR = createAPI(opts);
+    this.xhr.interceptors.response.use(
+      (response) => {
+        // Log all headers
+        this.emitter.emit("test", response.headers);
+
+        this.emitter.emit("test", response.headers["x-mbx-used-weight-1m"]);
+
+        return response;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+    this.unlimitedXHR.interceptors.response.use(
+      (response) => {
+        // Log all headers
+        this.emitter.emit("test", response.headers);
+
+        this.emitter.emit("test", response.headers["x-mbx-used-weight-1m"]);
+
+        return response;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
 
     this.orderQueueManager = new OrderQueueManager(
       this.emitter,
