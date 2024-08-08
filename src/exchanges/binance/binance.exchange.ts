@@ -217,7 +217,7 @@ export class BinanceExchange extends BaseExchange {
       } = response1;
 
       // Check and update store with response headers
-      this.emitter.emit("info", response1.headers);
+      this.emitter.emit("test", response1.headers);
       // Second API call
       const response2 = await this.xhr.get<Array<Record<string, any>>>(
         ENDPOINTS.LEVERAGE_BRACKET
