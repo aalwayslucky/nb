@@ -70,8 +70,8 @@ export class BinanceExchange extends BaseExchange {
   constructor(opts: ExchangeOptions, store: Store) {
     super(opts, store);
 
-    this.xhr = rateLimit(createAPI(opts, store), { maxRPS: 3 });
-    this.unlimitedXHR = createAPI(opts, store);
+    this.xhr = rateLimit(createAPI(opts), { maxRPS: 3 });
+    this.unlimitedXHR = createAPI(opts);
 
     this.orderQueueManager = new OrderQueueManager(
       this.emitter,

@@ -13,7 +13,6 @@ import {
   PUBLIC_ENDPOINTS,
   RECV_WINDOW,
 } from "./binance.types";
-import { Store } from "../../store/store.interface";
 
 function getRandomLocalhostIP() {
   return `127.0.0.${Math.floor(Math.random() * 256)}`;
@@ -51,7 +50,7 @@ const getBaseURL = (options: ExchangeOptions) => {
 
   return options.testnet ? BASE_URL.testnet : BASE_URL.livenet;
 };
-export const createAPI = (options: ExchangeOptions, store: Store) => {
+export const createAPI = (options: ExchangeOptions) => {
   const xhr = axios.create({
     baseURL: getBaseURL(options),
     headers: {
