@@ -2,28 +2,28 @@ import { Mutex } from "async-mutex";
 import { OrderResult } from "../../types";
 
 class OrderQueueManager {
-  private placeOrderBatchFast: (payloads: any[]) => Promise<Array<OrderResult>>;
+  private placeOrderFast: (payload: any) => Promise<OrderResult>;
   private queue: any[] = [];
   private mutex = new Mutex();
   private processing = false;
-  private waitingForResponse = false; // New flag to track waiting for responses
+  private waitingForResponse = false;
   private results: string[] = [];
   private resultsCollector: OrderResult[] = [];
-  private orderTimestamps10s: number[] = []; // Array to store the timestamps of each order in the last 10 seconds
-  private orderTimestamps60s: number[] = []; // Array to store the timestamps of each order in the last 60 seconds
+  private orderTimestamps10s: number[] = [];
+  private orderTimestamps60s: number[] = [];
 
   constructor(
     private emitter: any,
-    placeOrderBatchFast: (payloads: any[]) => Promise<Array<OrderResult>>
+    placeOrderFast: (payload: any) => Promise<OrderResult>
   ) {
-    this.placeOrderBatchFast = placeOrderBatchFast;
+    this.placeOrderFast = placeOrderFast;
   }
 
   enqueueOrders = async (orders: any[]) => {
     const release = await this.mutex.acquire();
     try {
       this.queue.push(...orders);
-      this.emitter.emit("orderManager", this.queue.length); // Emit event after enqueue
+      this.emitter.emit("orderManager", this.queue.length);
       if (!this.processing) {
         this.processing = true;
         this.startProcessing();
@@ -40,7 +40,7 @@ class OrderQueueManager {
       this.processing = false;
       this.orderTimestamps10s = [];
       this.orderTimestamps60s = [];
-      this.emitter.emit("orderManager", this.queue.length); // Emit event after destroying the queue
+      this.emitter.emit("orderManager", this.queue.length);
     } finally {
       release();
     }
@@ -51,7 +51,7 @@ class OrderQueueManager {
   }
 
   isWaitingForResponse() {
-    return this.waitingForResponse; // New method to check if waiting for responses
+    return this.waitingForResponse;
   }
 
   getResults() {
@@ -74,7 +74,7 @@ class OrderQueueManager {
     } catch (error) {
       this.emitter.emit("error", "Error in processing loop:", error);
     } finally {
-      this.processing = false; // Ensure the flag is reset even if an error occurs
+      this.processing = false;
     }
   }
 
@@ -85,8 +85,8 @@ class OrderQueueManager {
       }
       return new Promise((resolve) => setTimeout(resolve, ms));
     };
+
     while (this.queue.length > 0) {
-      // Remove timestamps older than 10 seconds and 60 seconds
       const now = Date.now();
       this.orderTimestamps10s = this.orderTimestamps10s.filter(
         (timestamp) => now - timestamp < 10000
@@ -107,46 +107,33 @@ class OrderQueueManager {
         continue;
       }
 
-      const maxAllowedSize = Math.min(
-        300 - this.orderTimestamps10s.length,
-        1200 - this.orderTimestamps60s.length,
-        this.queue.length,
-        5
-      );
-
       const release = await this.mutex.acquire();
-      const batch = this.queue.splice(0, maxAllowedSize);
+      const order = this.queue.shift();
       release();
       this.emitter.emit("orderManager", this.queue.length);
 
-      for (let i = 0; i < batch.length; i++) {
-        this.orderTimestamps10s.push(now);
-        this.orderTimestamps60s.push(now);
-      }
+      this.orderTimestamps10s.push(now);
+      this.orderTimestamps60s.push(now);
 
-      this.waitingForResponse = true; // Set flag to true before sending the batch
+      this.waitingForResponse = true;
       this.emitter.emit("waitingForResponse", this.waitingForResponse);
 
-      this.placeOrderBatchFast(batch)
-        .then((orderResults) => {
-          const successfulOrderIds = orderResults
-            .filter((orderResult) => orderResult.error === null)
-            .map((orderResult) => orderResult.orderId);
-          this.results.push(...successfulOrderIds);
-          const errorsResults = orderResults.filter(
-            (orderResult) => orderResult.error !== null
-          );
-          errorsResults.forEach((orderResult) =>
-            this.resultsCollector.push(orderResult)
-          );
-        })
-        .catch((error) => {
-          this.emitter.emit("error", "An unexpected error occurred:", error);
-        })
-        .finally(() => {
-          this.waitingForResponse = false; // Reset flag after receiving responses
-          this.emitter.emit("waitingForResponse", this.waitingForResponse);
-        });
+      try {
+        const orderResult = await this.placeOrderFast(order);
+        if (orderResult.error === null) {
+          this.results.push(orderResult.orderId);
+        } else {
+          this.resultsCollector.push(orderResult);
+        }
+      } catch (error) {
+        this.emitter.emit("error", "An unexpected error occurred:", error);
+      } finally {
+        this.waitingForResponse = false;
+        this.emitter.emit("waitingForResponse", this.waitingForResponse);
+      }
+
+      // Add a small delay between orders to avoid overwhelming the API
+      await sleep(10);
     }
   }
 }

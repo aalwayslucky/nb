@@ -75,7 +75,7 @@ export class BinanceExchange extends BaseExchange {
 
     this.orderQueueManager = new OrderQueueManager(
       this.emitter,
-      this.placeOrderBatchFast.bind(this) // Pass the placeOrderBatch function
+      this.placeOrderFast.bind(this) // Pass the placeOrderBatch function
     );
 
     this.publicWebsocket = new BinancePublicWebsocket(this);
@@ -1213,6 +1213,24 @@ export class BinanceExchange extends BaseExchange {
 
     return orderResults;
   };
+
+  private placeOrderFast = async (payload: any): Promise<OrderResult> => {
+    try {
+      const { data } = await this.unlimitedXHR.post(ENDPOINTS.ORDER, payload);
+      return {
+        orderId: data.orderId, // Use the orderId from the response
+        error: null,
+        symbol: payload.symbol,
+      };
+    } catch (err: any) {
+      return {
+        orderId: payload.newClientOrderId, // Use newClientOrderId in case of error
+        error: err,
+        symbol: payload.symbol,
+      };
+    }
+  };
+
   // private placeSplitOrders = async (payloads: PayloadOrder[]) => {
   //   const orderPromises = payloads.map((payload) =>
   //     this.unlimitedXHR
