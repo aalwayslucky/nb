@@ -107,32 +107,45 @@ class OrderQueueManager {
         continue;
       }
 
+      const maxAllowedSize = Math.min(
+        300 - this.orderTimestamps10s.length,
+        1200 - this.orderTimestamps60s.length,
+        this.queue.length
+      );
+
       const release = await this.mutex.acquire();
-      const order = this.queue.shift();
+      const ordersToProcess = this.queue.splice(0, maxAllowedSize);
       release();
       this.emitter.emit("orderManager", this.queue.length);
-
-      this.orderTimestamps10s.push(now);
-      this.orderTimestamps60s.push(now);
 
       this.waitingForResponse = true;
       this.emitter.emit("waitingForResponse", this.waitingForResponse);
 
-      try {
-        const orderResult = await this.placeOrderFast(order);
-        if (orderResult.error === null) {
-          this.results.push(orderResult.orderId);
-        } else {
-          this.resultsCollector.push(orderResult);
-        }
-      } catch (error) {
-        this.emitter.emit("error", "An unexpected error occurred:", error);
-      } finally {
-        this.waitingForResponse = false;
-        this.emitter.emit("waitingForResponse", this.waitingForResponse);
-      }
+      const orderPromises = ordersToProcess.map((order) => {
+        this.orderTimestamps10s.push(now);
+        this.orderTimestamps60s.push(now);
+        return this.placeOrderFast(order);
+      });
 
-      // Add a small delay between orders to avoid overwhelming the API
+      Promise.all(orderPromises)
+        .then((orderResults) => {
+          orderResults.forEach((orderResult) => {
+            if (orderResult.error === null) {
+              this.results.push(orderResult.orderId);
+            } else {
+              this.resultsCollector.push(orderResult);
+            }
+          });
+        })
+        .catch((error) => {
+          this.emitter.emit("error", "An unexpected error occurred:", error);
+        })
+        .finally(() => {
+          this.waitingForResponse = false;
+          this.emitter.emit("waitingForResponse", this.waitingForResponse);
+        });
+
+      // Add a small delay before the next batch
       await sleep(10);
     }
   }
