@@ -1,4 +1,4 @@
-import type { AxiosInstance } from "axios";
+import type { Axios } from "axios";
 import rateLimit from "axios-rate-limit";
 import type { ManipulateType } from "dayjs";
 import dayjs from "dayjs";
@@ -60,8 +60,8 @@ import {
 export class BinanceExchange extends BaseExchange {
   name = "BINANCE";
 
-  xhr: AxiosInstance;
-  unlimitedXHR: AxiosInstance;
+  xhr: Axios;
+  unlimitedXHR: Axios;
 
   publicWebsocket: BinancePublicWebsocket;
   privateWebsocket: BinancePrivateWebsocket;
@@ -207,33 +207,16 @@ export class BinanceExchange extends BaseExchange {
 
   fetchMarkets = async () => {
     try {
-      // First API call
-      const response1 = await this.xhr.get<{
-        symbols: Array<Record<string, any>>;
-      }>(ENDPOINTS.MARKETS);
-
       const {
         data: { symbols },
-      } = response1;
+      } = await this.xhr.get<{ symbols: Array<Record<string, any>> }>(
+        ENDPOINTS.MARKETS
+      );
 
-      // Check and update store with response headers
-      this.emitter.emit("test", response1.headers);
-      // Second API call
-      const response2 = await this.xhr.get<Array<Record<string, any>>>(
+      const { data } = await this.xhr.get<Array<Record<string, any>>>(
         ENDPOINTS.LEVERAGE_BRACKET
       );
-      const { data } = response2;
-
-      // Check and update store with response headers
-      const usedWeight2 =
-        response2.headers["x-mbx-used-weight-1m"] ||
-        response2.headers["X-MBX-USED-WEIGHT-1M"] ||
-        response2.headers["X-Mbx-Used-Weight-1m"];
-      if (usedWeight2) {
-        this.store.update({ usedWeight: parseInt(usedWeight2, 10) });
-      }
-
-      // Process symbols and markets
+      // delisted symbols
       const unwantedSymbols = [
         "BTSUSDT",
         "TOMOUSDT",
@@ -331,52 +314,18 @@ export class BinanceExchange extends BaseExchange {
 
   fetchTickers = async () => {
     try {
-      // First API call
-      const response1 = await this.xhr.get<Array<Record<string, any>>>(
+      const { data: dailys } = await this.xhr.get<Array<Record<string, any>>>(
         ENDPOINTS.TICKERS_24H
       );
-      const { data: dailys } = response1;
 
-      // Check and update store with response headers
-      const usedWeight1 =
-        response1.headers["x-mbx-used-weight-1m"] ||
-        response1.headers["X-MBX-USED-WEIGHT-1M"] ||
-        response1.headers["X-Mbx-Used-Weight-1m"];
-      if (usedWeight1) {
-        this.store.update({ usedWeight: parseInt(usedWeight1, 10) });
-      }
-
-      // Second API call
-      const response2 = await this.xhr.get<Array<Record<string, any>>>(
+      const { data: books } = await this.xhr.get<Array<Record<string, any>>>(
         ENDPOINTS.TICKERS_BOOK
       );
-      const { data: books } = response2;
 
-      // Check and update store with response headers
-      const usedWeight2 =
-        response2.headers["x-mbx-used-weight-1m"] ||
-        response2.headers["X-MBX-USED-WEIGHT-1M"] ||
-        response2.headers["X-Mbx-Used-Weight-1m"];
-      if (usedWeight2) {
-        this.store.update({ usedWeight: parseInt(usedWeight2, 10) });
-      }
-
-      // Third API call
-      const response3 = await this.xhr.get<Array<Record<string, any>>>(
+      const { data: prices } = await this.xhr.get<Array<Record<string, any>>>(
         ENDPOINTS.TICKERS_PRICE
       );
-      const { data: prices } = response3;
 
-      // Check and update store with response headers
-      const usedWeight3 =
-        response3.headers["x-mbx-used-weight-1m"] ||
-        response3.headers["X-MBX-USED-WEIGHT-1M"] ||
-        response3.headers["X-Mbx-Used-Weight-1m"];
-      if (usedWeight3) {
-        this.store.update({ usedWeight: parseInt(usedWeight3, 10) });
-      }
-
-      // Process tickers
       const tickers: Ticker[] = books.reduce((acc: Ticker[], book) => {
         const market = this.store.markets.find((m) => m.symbol === book.symbol);
 
@@ -397,7 +346,7 @@ export class BinanceExchange extends BaseExchange {
           fundingRate: parseFloat(v(price, "lastFundingRate")),
           volume: parseFloat(daily.volume),
           quoteVolume: parseFloat(v(daily, "quoteVolume")),
-          openInterest: 0, // Binance doesn't provide all tickers data
+          openInterest: 0, // Binance doesn't provides all tickers data
         };
 
         return [...acc, ticker];
