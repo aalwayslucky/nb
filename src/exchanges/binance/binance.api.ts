@@ -17,6 +17,30 @@ import {
 function getRandomLocalhostIP() {
   return `127.0.0.${Math.floor(Math.random() * 256)}`;
 }
+
+function getParamString(method: string, data: any, timestamp: number): string {
+  const RECV_WINDOW = 5000; // Adjust this value as needed
+
+  if (method.toLowerCase() === "get") {
+    return `batchOrders=${encodeURIComponent(
+      data.batchOrders
+    )}&recvWindow=${RECV_WINDOW}&timestamp=${timestamp}`;
+  } else if (method.toLowerCase() === "delete") {
+    if (data.origClientOrderIdList) {
+      // For batch cancellations
+      return `symbol=${data.symbol}&origClientOrderIdList=${encodeURIComponent(
+        JSON.stringify(data.origClientOrderIdList)
+      )}&recvWindow=${RECV_WINDOW}&timestamp=${timestamp}`;
+    } else {
+      // For single order cancellation
+      return `symbol=${data.symbol}&origClientOrderId=${encodeURIComponent(
+        data.origClientOrderId
+      )}&recvWindow=${RECV_WINDOW}&timestamp=${timestamp}`;
+    }
+  } else {
+    throw new Error(`Unsupported method: ${method}`);
+  }
+}
 const getBaseURL = (options: ExchangeOptions) => {
   if (options.extra?.binance?.http) {
     return options.testnet
@@ -79,12 +103,11 @@ export const createAPI = (options: ExchangeOptions) => {
       );
 
     // Check if it's a batch order
-    if (config.url === ENDPOINTS.BATCH_ORDERS) {
+    if (config.url === ENDPOINTS.BATCH_ORDERS && config.method) {
       // URL encode only the batchOrders parameter
-      const paramString = `batchOrders=${encodeURIComponent(
-        data.batchOrders
-      )}&recvWindow=${RECV_WINDOW}&timestamp=${timestamp}`;
-      // Generate signature
+
+      const paramString = getParamString(config.method, data, timestamp);
+
       const signature = createHmac("sha256", options.secret)
         .update(paramString)
         .digest("hex");
