@@ -1,4 +1,4 @@
-import type { Axios } from "axios";
+import type { AxiosInstance } from "axios";
 import rateLimit from "axios-rate-limit";
 import type { ManipulateType } from "dayjs";
 import dayjs from "dayjs";
@@ -60,8 +60,8 @@ import {
 export class BinanceExchange extends BaseExchange {
   name = "BINANCE";
 
-  xhr: Axios;
-  unlimitedXHR: Axios;
+  xhr: AxiosInstance;
+  unlimitedXHR: AxiosInstance;
 
   publicWebsocket: BinancePublicWebsocket;
   privateWebsocket: BinancePrivateWebsocket;
@@ -75,7 +75,7 @@ export class BinanceExchange extends BaseExchange {
     this.xhr.interceptors.response.use(
       (response) => {
         // Log all headers
-        this.emitter.emit("test", response.headers);
+        this.emitter.emit("test", response);
 
         this.emitter.emit("test", response.headers["x-mbx-used-weight-1m"]);
 
