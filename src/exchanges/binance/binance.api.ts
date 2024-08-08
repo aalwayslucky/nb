@@ -41,6 +41,8 @@ export const createAPI = (options: ExchangeOptions) => {
     // on livenet, don't sign listen key requests (they don't need it)
     if (config.url === ENDPOINTS.LISTEN_KEY && !options.testnet) {
       const nextConfig = { ...config };
+      nextConfig.headers["X-MBX-APIKEY"] = options.key;
+      delete nextConfig.headers["X-My-X-Forwarded-For"];
       nextConfig.headers["Content-Type"] = "application/json, chartset=utf-8";
       nextConfig.baseURL = BASE_URL.livenet;
       return omit(nextConfig, "data");
