@@ -158,7 +158,30 @@ export class BinanceExchange extends BaseExchange {
       loaded: { ...this.store.loaded, orders: true },
     });
   };
+  refreshOrdersAndPositions = async () => {
+    if (this.isDisposed) return;
 
+    try {
+      // Fetch orders
+      const orders = await this.fetchOrders();
+      if (this.isDisposed) return;
+
+      // Fetch balance and positions
+      const { balance, positions } = await this.fetchBalanceAndPositions();
+      if (this.isDisposed) return;
+
+      // Update the store with the fetched data
+      this.store.update({
+        orders,
+        balance,
+        positions,
+      });
+
+      this.log(`Refreshed orders, balance, and positions`);
+    } catch (err: any) {
+      this.emitter.emit("error", err?.message);
+    }
+  };
   tick = async () => {
     if (!this.isDisposed) {
       try {
